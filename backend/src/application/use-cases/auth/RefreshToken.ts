@@ -18,21 +18,18 @@ export class RefreshToken {
   ) {}
 
   async execute(dto: RefreshTokenDTO): Promise<RefreshTokenResponse> {
-    // Verify refresh token
     const payload = this.jwtService.verifyRefreshToken(dto.refreshToken);
 
     if (!payload) {
       throw new UnauthorizedError('Invalid refresh token');
     }
 
-    // Check if user still exists and is active
     const user = await this.userRepository.findById(payload.userId);
 
     if (!user || !user.isActive) {
       throw new UnauthorizedError('User not found or inactive');
     }
 
-    // Generate new tokens
     const tokenPayload = {
       userId: user.id,
       email: user.email,

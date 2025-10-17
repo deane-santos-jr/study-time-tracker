@@ -18,16 +18,13 @@ export class RegisterUser {
   ) {}
 
   async execute(dto: RegisterUserDTO): Promise<User> {
-    // Validate input
     this.validateInput(dto);
 
-    // Check if user already exists
     const existingUser = await this.userRepository.findByEmail(dto.email);
     if (existingUser) {
       throw new ConflictError('User with this email already exists');
     }
 
-    // Validate password strength
     const passwordValidation = await this.passwordHashingService.validatePasswordStrength(
       dto.password
     );
@@ -35,10 +32,8 @@ export class RegisterUser {
       throw new ValidationError(passwordValidation.errors.join(', '));
     }
 
-    // Hash password
     const hashedPassword = await this.passwordHashingService.hash(dto.password);
 
-    // Create user entity
     const user = User.create(
       uuidv4(),
       dto.email.toLowerCase(),
@@ -47,7 +42,6 @@ export class RegisterUser {
       dto.lastName
     );
 
-    // Save user
     return await this.userRepository.create(user);
   }
 

@@ -27,21 +27,17 @@ export class LoginUser {
   ) {}
 
   async execute(dto: LoginUserDTO): Promise<LoginResponse> {
-    // Validate input
     this.validateInput(dto);
 
-    // Find user by email
     const user = await this.userRepository.findByEmail(dto.email.toLowerCase());
     if (!user) {
       throw new UnauthorizedError('Invalid email or password');
     }
 
-    // Check if user is active
     if (!user.isActive) {
       throw new UnauthorizedError('Account is inactive');
     }
 
-    // Verify password
     const isPasswordValid = await this.passwordHashingService.compare(
       dto.password,
       user.password
@@ -51,7 +47,6 @@ export class LoginUser {
       throw new UnauthorizedError('Invalid email or password');
     }
 
-    // Generate tokens
     const tokenPayload: TokenPayload = {
       userId: user.id,
       email: user.email,
