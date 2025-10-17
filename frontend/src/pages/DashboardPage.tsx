@@ -14,6 +14,10 @@ import {
   TrendingUpOutlined as TrendingIcon,
   StarOutlined as StarIcon,
   ArrowForwardOutlined as ArrowIcon,
+  HistoryOutlined as HistoryIcon,
+  AccessTimeOutlined as ClockIcon,
+  CheckCircleOutline as CompleteIcon,
+  PlayCircleOutline as ActiveIcon,
 } from '@mui/icons-material';
 import { format, startOfToday, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -208,9 +212,12 @@ export const DashboardPage = () => {
             <Card elevation={3} sx={{ height: '100%' }}>
               <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
                 <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Typography variant="h5" fontWeight="600">
-                    Recent Sessions
-                  </Typography>
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <HistoryIcon sx={{ fontSize: 28, color: 'primary.main' }} />
+                    <Typography variant="h5" fontWeight="600">
+                      Recent Sessions
+                    </Typography>
+                  </Box>
                   <Button
                     size="small"
                     endIcon={<ArrowIcon />}
@@ -221,7 +228,7 @@ export const DashboardPage = () => {
                   </Button>
                 </Box>
 
-{recentSessions.length === 0 ? (
+                {recentSessions.length === 0 ? (
                   <Box
                     flex={1}
                     display="flex"
@@ -238,7 +245,7 @@ export const DashboardPage = () => {
                     </Typography>
                   </Box>
                 ) : (
-                  <Box sx={{ overflowY: 'auto' }}>
+                  <Box sx={{ overflowY: 'auto', overflowX: 'hidden' }}>
                     {recentSessions.map((session) => {
                       const subject = getSubjectById(session.subjectId);
                       return (
@@ -247,15 +254,17 @@ export const DashboardPage = () => {
                           sx={{
                             py: 2,
                             px: 1.5,
-                            borderRadius: 1,
-                            transition: 'background-color 0.2s ease',
+                            borderRadius: 1.5,
+                            borderLeft: `4px solid ${subject?.color || '#8B5CF6'}`,
+                            backgroundColor: `${subject?.color || '#8B5CF6'}08`,
+                            transition: 'all 0.2s ease',
+                            mb: 1.5,
                             '&:hover': {
-                              bgcolor: 'action.hover',
+                              bgcolor: `${subject?.color || '#8B5CF6'}15`,
                               cursor: 'pointer',
+                              transform: 'translateX(4px)',
                             },
-                            borderBottom: '1px solid',
-                            borderColor: 'divider',
-                            '&:last-child': { borderBottom: 'none' },
+                            '&:last-child': { mb: 0 },
                           }}
                         >
                           <Box display="flex" alignItems="center" gap={2}>
@@ -265,12 +274,13 @@ export const DashboardPage = () => {
                                   width: 44,
                                   height: 44,
                                   borderRadius: '50%',
-                                  backgroundColor: `${subject.color}20`,
+                                  backgroundColor: `${subject.color}30`,
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
                                   fontSize: '1.4rem',
                                   flexShrink: 0,
+                                  border: `2px solid ${subject.color}`,
                                 }}
                               >
                                 {subject.icon}
@@ -278,19 +288,28 @@ export const DashboardPage = () => {
                             )}
                             <Box flex={1} minWidth={0}>
                               <Box display="flex" justifyContent="space-between" alignItems="center" gap={2} mb={0.5}>
-                                <Typography variant="body1" fontWeight="500" noWrap sx={{ flex: 1 }}>
-                                  {subject?.name || 'Unknown Subject'}
-                                </Typography>
-                                <Typography
-                                  variant="body1"
-                                  fontWeight="bold"
-                                  color="primary.main"
-                                  sx={{ flexShrink: 0 }}
-                                >
-                                  {session.effectiveStudyTime
-                                    ? formatDuration(session.effectiveStudyTime)
-                                    : 'In progress'}
-                                </Typography>
+                                <Box display="flex" alignItems="center" gap={1} flex={1} minWidth={0}>
+                                  {session.effectiveStudyTime ? (
+                                    <CompleteIcon sx={{ fontSize: 18, color: 'success.main' }} />
+                                  ) : (
+                                    <ActiveIcon sx={{ fontSize: 18, color: 'info.main' }} />
+                                  )}
+                                  <Typography variant="body1" fontWeight="500" noWrap>
+                                    {subject?.name || 'Unknown Subject'}
+                                  </Typography>
+                                </Box>
+                                <Box display="flex" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
+                                  <ClockIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+                                  <Typography
+                                    variant="body1"
+                                    fontWeight="bold"
+                                    color="primary.main"
+                                  >
+                                    {session.effectiveStudyTime
+                                      ? formatDuration(session.effectiveStudyTime)
+                                      : 'Active'}
+                                  </Typography>
+                                </Box>
                               </Box>
                               <Typography variant="caption" color="text.secondary">
                                 {format(new Date(session.startTime), 'MMM dd, yyyy')} at{' '}

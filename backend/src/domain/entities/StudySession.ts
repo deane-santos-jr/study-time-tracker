@@ -15,9 +15,10 @@ export class StudySession {
     public endTime: Date | undefined,
     public pausedAt: Date | undefined,
     public status: SessionStatus,
-    public totalDuration: number | undefined, // in seconds
-    public effectiveStudyTime: number | undefined, // in seconds (excluding breaks)
+    public totalDuration: number | undefined, 
+    public effectiveStudyTime: number | undefined, 
     public breakCount: number,
+    public accumulatedPauseTime: number, 
     public readonly createdAt: Date,
     public updatedAt: Date
   ) {}
@@ -29,7 +30,6 @@ export class StudySession {
 
     this.status = SessionStatus.PAUSED;
     this.pausedAt = new Date();
-    this.breakCount += 1;
     this.updatedAt = new Date();
   }
 
@@ -43,7 +43,7 @@ export class StudySession {
     this.updatedAt = new Date();
   }
 
-  stop(totalBreakTimeInSeconds: number = 0): void {
+  stop(totalBreakTimeInSeconds: number = 0, totalPauseTimeInSeconds: number = 0): void {
     if (this.status === SessionStatus.COMPLETED) {
       throw new Error('Session already completed');
     }
@@ -51,11 +51,9 @@ export class StudySession {
     this.endTime = new Date();
     this.status = SessionStatus.COMPLETED;
 
-    // Calculate total duration
     this.totalDuration = Math.floor((this.endTime.getTime() - this.startTime.getTime()) / 1000);
 
-    // Calculate effective study time (total - breaks)
-    this.effectiveStudyTime = this.totalDuration - totalBreakTimeInSeconds;
+    this.effectiveStudyTime = this.totalDuration - totalBreakTimeInSeconds - totalPauseTimeInSeconds;
 
     this.updatedAt = new Date();
   }
@@ -89,6 +87,7 @@ export class StudySession {
       undefined,
       undefined,
       0, // breakCount
+      0, // accumulatedPauseTime
       new Date(),
       new Date()
     );

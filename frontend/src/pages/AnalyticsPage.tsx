@@ -12,9 +12,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  TextField,
   Button,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
   PieChart,
   Pie,
@@ -172,83 +174,103 @@ const AnalyticsPage: React.FC = () => {
           <Typography variant="h6" fontWeight={600} gutterBottom>
             Filters
           </Typography>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Subject</InputLabel>
-                <Select
-                  value={selectedSubject}
-                  label="Subject"
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                >
-                  <MenuItem value="all">All Subjects</MenuItem>
-                  {subjects.map((subject) => (
-                    <MenuItem key={subject.id} value={subject.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box
-                          sx={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            bgcolor: subject.color,
-                          }}
-                        />
-                        {subject.name}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Grid container spacing={2} alignItems="center">
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Subject</InputLabel>
+                  <Select
+                    value={selectedSubject}
+                    label="Subject"
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                  >
+                    <MenuItem value="all">All Subjects</MenuItem>
+                    {subjects.map((subject) => (
+                      <MenuItem key={subject.id} value={subject.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              bgcolor: subject.color,
+                            }}
+                          />
+                          {subject.name}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <DatePicker
+                  label="Start Date"
+                  value={startDate ? new Date(startDate) : null}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setStartDate(newValue.toISOString().split('T')[0]);
+                    } else {
+                      setStartDate('');
+                    }
+                  }}
+                  format="MM/dd/yyyy"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <DatePicker
+                  label="End Date"
+                  value={endDate ? new Date(endDate) : null}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setEndDate(newValue.toISOString().split('T')[0]);
+                    } else {
+                      setEndDate('');
+                    }
+                  }}
+                  format="MM/dd/yyyy"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                    },
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Button
+                    variant="contained"
+                    onClick={handleTodayFilter}
+                    sx={{ flex: '1 1 auto' }}
+                  >
+                    Today
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={handleApplyFilters}
+                    startIcon={<TrendingUp />}
+                    sx={{ flex: '1 1 auto' }}
+                  >
+                    Apply
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={handleClearFilters}
+                    startIcon={<Refresh />}
+                  >
+                    Clear
+                  </Button>
+                </Box>
+              </Grid>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="Start Date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="End Date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
-            <Grid item xs={12} md={3}>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  onClick={handleTodayFilter}
-                  sx={{ flex: '1 1 auto' }}
-                >
-                  Today
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={handleApplyFilters}
-                  startIcon={<TrendingUp />}
-                  sx={{ flex: '1 1 auto' }}
-                >
-                  Apply
-                </Button>
-                <Button
-                  variant="outlined"
-                  onClick={handleClearFilters}
-                  startIcon={<Refresh />}
-                >
-                  Clear
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
+          </LocalizationProvider>
         </Paper>
 
         {/* Stats Cards */}
@@ -310,14 +332,14 @@ const AnalyticsPage: React.FC = () => {
           <Grid container spacing={3}>
             {/* Subject Distribution Pie Chart */}
             <Grid item xs={12} lg={6}>
-              <Paper elevation={3} sx={{ p: 4, height: 550 }}>
+              <Paper elevation={3} sx={{ p: 4, height: 650 }}>
                 <Typography variant="h5" fontWeight={600} gutterBottom>
                   Study Time Distribution by Subject
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                   See how your study time is distributed across different subjects
                 </Typography>
-                <ResponsiveContainer width="100%" height={420}>
+                <ResponsiveContainer width="100%" height={520}>
                   <PieChart>
                     <Pie
                       data={analytics.subjectStats}
@@ -325,9 +347,7 @@ const AnalyticsPage: React.FC = () => {
                       nameKey="subjectName"
                       cx="50%"
                       cy="50%"
-                      outerRadius={130}
-                      label={(entry) => entry.subjectName}
-                      labelLine={true}
+                      outerRadius={180}
                     >
                       {analytics.subjectStats.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -342,14 +362,14 @@ const AnalyticsPage: React.FC = () => {
 
             {/* Subject Sessions Bar Chart */}
             <Grid item xs={12} lg={6}>
-              <Paper elevation={3} sx={{ p: 4, height: 550 }}>
+              <Paper elevation={3} sx={{ p: 4, height: 650 }}>
                 <Typography variant="h5" fontWeight={600} gutterBottom>
                   Sessions per Subject
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
                   Number of study sessions completed for each subject
                 </Typography>
-                <ResponsiveContainer width="100%" height={420}>
+                <ResponsiveContainer width="100%" height={520}>
                   <BarChart data={analytics.subjectStats}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="subjectName" />

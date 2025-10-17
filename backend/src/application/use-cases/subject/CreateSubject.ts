@@ -18,10 +18,8 @@ export class CreateSubject {
   ) {}
 
   async execute(userId: string, dto: CreateSubjectDTO): Promise<Subject> {
-    // Validate input
     this.validateInput(dto);
 
-    // Validate semester exists and belongs to user
     const semester = await this.semesterRepository.findById(dto.semesterId);
     if (!semester) {
       throw new NotFoundError('Semester not found');
@@ -30,7 +28,6 @@ export class CreateSubject {
       throw new ValidationError('Semester does not belong to you');
     }
 
-    // Create subject entity
     const subject = Subject.create(
       uuidv4(),
       userId,
@@ -40,7 +37,6 @@ export class CreateSubject {
       dto.icon || '📚'
     );
 
-    // Save subject
     return await this.subjectRepository.create(subject);
   }
 

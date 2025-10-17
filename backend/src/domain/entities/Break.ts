@@ -4,7 +4,7 @@ export class Break {
     public readonly sessionId: string,
     public readonly startTime: Date,
     public endTime: Date | undefined,
-    public duration: number | undefined, // in seconds
+    public duration: number | undefined, 
     public readonly createdAt: Date
   ) {}
 
@@ -19,7 +19,6 @@ export class Break {
 
   getDuration(): number {
     if (!this.endTime) {
-      // Calculate current duration if still ongoing
       const now = new Date();
       return Math.floor((now.getTime() - this.startTime.getTime()) / 1000);
     }

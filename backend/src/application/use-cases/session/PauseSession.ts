@@ -5,32 +5,48 @@ import { Break } from '../../../domain/entities/Break';
 import { NotFoundError, ValidationError } from '../../../shared/errors/AppError';
 import { v4 as uuidv4 } from 'uuid';
 
+export interface PauseSessionDTO {
+  isBreak?: boolean;
+}
+
 export class PauseSession {
   constructor(
     private sessionRepository: IStudySessionRepository,
     private breakRepository: IBreakRepository
   ) {}
 
-  async execute(userId: string, sessionId: string): Promise<StudySession> {
-    // Find session
+  async execute(userId: string, sessionId: string, dto?: PauseSessionDTO): Promise<StudySession & { accumulatedBreakTime?: number; hasActiveBreak?: boolean; accumulatedPauseTime?: number }> {
     const session = await this.sessionRepository.findById(sessionId);
     if (!session) {
       throw new NotFoundError('Session not found');
     }
 
-    // Check ownership
     if (session.userId !== userId) {
       throw new ValidationError('Session does not belong to you');
     }
 
-    // Pause the session (this creates a break)
     session.pause();
 
-    // Create break record
-    const breakRecord = Break.create(uuidv4(), session.id);
-    await this.breakRepository.create(breakRecord);
+    const isBreak = dto?.isBreak !== false;
+    if (isBreak) {
+      const breakRecord = Break.create(uuidv4(), session.id);
+      await this.breakRepository.create(breakRecord);
+      session.breakCount += 1;
+    }
 
-    // Update session
-    return await this.sessionRepository.update(session);
+    const updatedSession = await this.sessionRepository.update(session);
+
+    const breaks = await this.breakRepository.findBySessionId(session.id);
+    let hasActiveBreak = false;
+
+    const accumulatedBreakTime = breaks.reduce((sum, b) => {
+      if (!b.endTime) {
+        hasActiveBreak = true;
+        return sum + 0;
+      }
+      return sum + (b.duration || 0);
+    }, 0);
+
+    return { ...updatedSession, accumulatedBreakTime, hasActiveBreak, accumulatedPauseTime: updatedSession.accumulatedPauseTime };
   }
 }

@@ -5,6 +5,7 @@ import { ResumeSession } from '../../application/use-cases/session/ResumeSession
 import { StopSession } from '../../application/use-cases/session/StopSession';
 import { GetActiveSession } from '../../application/use-cases/session/GetActiveSession';
 import { GetAllSessions } from '../../application/use-cases/session/GetAllSessions';
+import { DeleteSession } from '../../application/use-cases/session/DeleteSession';
 import { StudySessionRepository } from '../../infrastructure/database/repositories/StudySessionRepository';
 import { SubjectRepository } from '../../infrastructure/database/repositories/SubjectRepository';
 import { BreakRepository } from '../../infrastructure/database/repositories/BreakRepository';
@@ -46,7 +47,7 @@ export class SessionController {
       const userId = req.userId!;
       const { id } = req.params;
 
-      const session = await pauseSession.execute(userId, id);
+      const session = await pauseSession.execute(userId, id, req.body);
 
       res.status(200).json({
         success: true,
@@ -96,7 +97,7 @@ export class SessionController {
 
   async getActive(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const getActiveSession = new GetActiveSession(this.sessionRepository);
+      const getActiveSession = new GetActiveSession(this.sessionRepository, this.breakRepository);
       const userId = req.userId!;
 
       const session = await getActiveSession.execute(userId);
@@ -122,6 +123,23 @@ export class SessionController {
         success: true,
         message: 'Sessions retrieved successfully',
         data: sessions,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const deleteSession = new DeleteSession(this.sessionRepository);
+      const userId = req.userId!;
+      const { id } = req.params;
+
+      await deleteSession.execute(userId, id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Session deleted successfully',
       });
     } catch (error) {
       next(error);

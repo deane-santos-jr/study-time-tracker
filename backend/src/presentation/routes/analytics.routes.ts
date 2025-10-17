@@ -6,17 +6,13 @@ import { SubjectRepository } from '../../infrastructure/database/repositories/Su
 
 const router = Router();
 
-// Initialize repositories
 const sessionRepository = new StudySessionRepository();
 const subjectRepository = new SubjectRepository();
 
-// Initialize controller
 const analyticsController = new AnalyticsController(sessionRepository, subjectRepository);
 
-// Apply auth middleware to all routes
 router.use(authenticate);
 
-// Analytics routes
 router.get('/', analyticsController.getAnalytics.bind(analyticsController));
 
 export default router;

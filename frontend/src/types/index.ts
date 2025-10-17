@@ -77,6 +77,9 @@ export interface StudySession {
   totalDuration?: number;
   effectiveStudyTime?: number;
   breakCount: number;
+  accumulatedBreakTime?: number;
+  accumulatedPauseTime?: number;
+  hasActiveBreak?: boolean;
   createdAt: string;
   updatedAt: string;
 }

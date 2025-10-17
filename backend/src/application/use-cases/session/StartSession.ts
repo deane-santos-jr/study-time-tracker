@@ -14,14 +14,12 @@ export class StartSession {
     private subjectRepository: ISubjectRepository
   ) {}
 
-  async execute(userId: string, dto: StartSessionDTO): Promise<StudySession> {
-    // Check if user already has an active session
-    const activeSession = await this.sessionRepository.findActiveSession(userId);
+  async execute(userId: string, dto: StartSessionDTO): Promise<StudySession & { accumulatedBreakTime?: number; hasActiveBreak?: boolean; accumulatedPauseTime?: number }> {
+    const activeSession = await this.sessionRepository.findActiveByUserId(userId);
     if (activeSession) {
       throw new ConflictError('You already have an active session. Please stop it before starting a new one.');
     }
 
-    // Validate subject exists and belongs to user
     const subject = await this.subjectRepository.findById(dto.subjectId);
     if (!subject) {
       throw new NotFoundError('Subject not found');
@@ -30,13 +28,14 @@ export class StartSession {
       throw new ValidationError('Subject does not belong to you');
     }
 
-    // Create new session (semester will be accessed through subject)
     const session = StudySession.create(
       uuidv4(),
       userId,
       dto.subjectId
     );
 
-    return await this.sessionRepository.create(session);
+    const createdSession = await this.sessionRepository.create(session);
+
+    return { ...createdSession, accumulatedBreakTime: 0, hasActiveBreak: false, accumulatedPauseTime: 0 };
   }
 }

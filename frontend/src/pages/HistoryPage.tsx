@@ -14,14 +14,22 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  TextField,
   Grid,
   Chip,
   IconButton,
   Tooltip,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+  Alert,
 } from '@mui/material';
-import { FilterList, Refresh } from '@mui/icons-material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
+import { FilterList, Refresh, Delete as DeleteIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { MainLayout } from '../components/layout/MainLayout';
 import { sessionService } from '../services/sessionService';
@@ -38,6 +46,11 @@ const HistoryPage: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<string>('all');
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
+
+  // Delete modal states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState<string>('');
 
   useEffect(() => {
     loadData();
@@ -150,6 +163,33 @@ const HistoryPage: React.FC = () => {
     setEndDate('');
   };
 
+  const handleDeleteClick = (sessionId: string) => {
+    setSessionToDelete(sessionId);
+    setDeleteDialogOpen(true);
+    setDeleteError('');
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteDialogOpen(false);
+    setSessionToDelete(null);
+    setDeleteError('');
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!sessionToDelete) return;
+
+    try {
+      await sessionService.delete(sessionToDelete);
+      setDeleteDialogOpen(false);
+      setSessionToDelete(null);
+      setDeleteError('');
+      await loadData();
+    } catch (error) {
+      console.error('Failed to delete session:', error);
+      setDeleteError('Failed to delete session. Please try again.');
+    }
+  };
+
   return (
     <MainLayout>
       <Container maxWidth="xl" sx={{ py: 4 }}>
@@ -169,74 +209,94 @@ const HistoryPage: React.FC = () => {
             <Typography variant="h6">Filters</Typography>
           </Box>
 
-          <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Subject</InputLabel>
-                <Select
-                  value={selectedSubject}
-                  label="Subject"
-                  onChange={(e) => setSelectedSubject(e.target.value)}
-                >
-                  <MenuItem value="all">All Subjects</MenuItem>
-                  {subjects.map((subject) => (
-                    <MenuItem key={subject.id} value={subject.id}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box
-                          sx={{
-                            width: 12,
-                            height: 12,
-                            borderRadius: '50%',
-                            bgcolor: subject.color,
-                          }}
-                        />
-                        {subject.name}
-                      </Box>
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
+          <LocalizationProvider dateAdapter={AdapterDateFns}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6} md={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Subject</InputLabel>
+                  <Select
+                    value={selectedSubject}
+                    label="Subject"
+                    onChange={(e) => setSelectedSubject(e.target.value)}
+                  >
+                    <MenuItem value="all">All Subjects</MenuItem>
+                    {subjects.map((subject) => (
+                      <MenuItem key={subject.id} value={subject.id}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <Box
+                            sx={{
+                              width: 12,
+                              height: 12,
+                              borderRadius: '50%',
+                              bgcolor: subject.color,
+                            }}
+                          />
+                          {subject.name}
+                        </Box>
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="Start Date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <DatePicker
+                  label="Start Date"
+                  value={startDate ? new Date(startDate) : null}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setStartDate(newValue.toISOString().split('T')[0]);
+                    } else {
+                      setStartDate('');
+                    }
+                  }}
+                  format="MM/dd/yyyy"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                    },
+                  }}
+                />
+              </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
-              <TextField
-                fullWidth
-                size="small"
-                type="date"
-                label="End Date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Grid>
+              <Grid item xs={12} sm={6} md={3}>
+                <DatePicker
+                  label="End Date"
+                  value={endDate ? new Date(endDate) : null}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setEndDate(newValue.toISOString().split('T')[0]);
+                    } else {
+                      setEndDate('');
+                    }
+                  }}
+                  format="MM/dd/yyyy"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: 'small',
+                    },
+                  }}
+                />
+              </Grid>
 
-            <Grid item xs={12} sm={6} md={3}>
-              <Box sx={{ display: 'flex', gap: 1 }}>
-                <Tooltip title="Clear Filters">
-                  <IconButton onClick={handleClearFilters} color="primary">
-                    <FilterList />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Refresh">
-                  <IconButton onClick={handleRefresh} color="primary">
-                    <Refresh />
-                  </IconButton>
-                </Tooltip>
-              </Box>
+              <Grid item xs={12} sm={6} md={3}>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Tooltip title="Clear Filters">
+                    <IconButton onClick={handleClearFilters} color="primary">
+                      <FilterList />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Refresh">
+                    <IconButton onClick={handleRefresh} color="primary">
+                      <Refresh />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Grid>
             </Grid>
-          </Grid>
+          </LocalizationProvider>
 
           <Box sx={{ mt: 2 }}>
             <Typography variant="body2" color="text.secondary">
@@ -273,6 +333,7 @@ const HistoryPage: React.FC = () => {
                   <TableCell align="right"><strong>Effective Time</strong></TableCell>
                   <TableCell align="right"><strong>Break Time</strong></TableCell>
                   <TableCell align="center"><strong>Breaks</strong></TableCell>
+                  <TableCell align="center"><strong>Actions</strong></TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -321,7 +382,7 @@ const HistoryPage: React.FC = () => {
                     </TableCell>
                     <TableCell align="right">
                       <Typography variant="body2" color="warning.main">
-                        {formatDuration((session.totalDuration || 0) - (session.effectiveStudyTime || 0))}
+                        {formatDuration((session.totalDuration || 0) - (session.effectiveStudyTime || 0) - (session.accumulatedPauseTime || 0))}
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
@@ -331,12 +392,56 @@ const HistoryPage: React.FC = () => {
                         variant="outlined"
                       />
                     </TableCell>
+                    <TableCell align="center">
+                      <Tooltip title="Delete Session">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteClick(session.id)}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           </TableContainer>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleDeleteCancel}
+          maxWidth="sm"
+          fullWidth
+        >
+          <DialogTitle>Delete Session</DialogTitle>
+          <DialogContent>
+            {deleteError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {deleteError}
+              </Alert>
+            )}
+            <Typography>
+              Are you sure you want to delete this session? This action cannot be undone.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleDeleteCancel} color="inherit">
+              Cancel
+            </Button>
+            <Button
+              onClick={handleDeleteConfirm}
+              color="error"
+              variant="contained"
+              autoFocus
+            >
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </MainLayout>
   );

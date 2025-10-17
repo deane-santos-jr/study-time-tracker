@@ -23,5 +23,6 @@ router.post('/:id/resume', sessionController.resume.bind(sessionController));
 router.post('/:id/stop', sessionController.stop.bind(sessionController));
 router.get('/active', sessionController.getActive.bind(sessionController));
 router.get('/', sessionController.getAll.bind(sessionController));
+router.delete('/:id', sessionController.delete.bind(sessionController));
 
 export default router;

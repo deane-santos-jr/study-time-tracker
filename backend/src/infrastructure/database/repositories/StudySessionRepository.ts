@@ -23,6 +23,7 @@ export class StudySessionRepository implements IStudySessionRepository {
       totalDuration: session.totalDuration,
       effectiveStudyTime: session.effectiveStudyTime,
       breakCount: session.breakCount,
+      accumulatedPauseTime: session.accumulatedPauseTime,
       createdAt: session.createdAt,
       updatedAt: session.updatedAt,
     });
@@ -44,7 +45,7 @@ export class StudySessionRepository implements IStudySessionRepository {
     return sessionEntities.map((entity) => this.toDomain(entity));
   }
 
-  async findActiveSession(userId: string): Promise<StudySession | null> {
+  async findActiveByUserId(userId: string): Promise<StudySession | null> {
     const sessionEntity = await this.repository.findOne({
       where: [
         { userId, status: SessionStatus.ACTIVE },
@@ -79,6 +80,7 @@ export class StudySessionRepository implements IStudySessionRepository {
       totalDuration: session.totalDuration,
       effectiveStudyTime: session.effectiveStudyTime,
       breakCount: session.breakCount,
+      accumulatedPauseTime: session.accumulatedPauseTime,
       updatedAt: new Date(),
     });
 
@@ -106,6 +108,7 @@ export class StudySessionRepository implements IStudySessionRepository {
       entity.totalDuration,
       entity.effectiveStudyTime,
       entity.breakCount,
+      entity.accumulatedPauseTime || 0,
       entity.createdAt,
       entity.updatedAt
     );

@@ -18,6 +18,9 @@ import {
   CircularProgress,
   Chip,
 } from '@mui/material';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import {
   Add as AddIcon,
   Edit as EditIcon,
@@ -375,27 +378,49 @@ export const SemestersPage = () => {
               placeholder="e.g., Fall 2024, Spring 2025"
             />
 
-            <TextField
-              fullWidth
-              label="Start Date"
-              type="date"
-              value={formData.startDate}
-              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-              margin="normal"
-              required
-              InputLabelProps={{ shrink: true }}
-            />
+            <LocalizationProvider dateAdapter={AdapterDateFns}>
+              <Box sx={{ mt: 2, mb: 1 }}>
+                <DatePicker
+                  label="Start Date"
+                  value={formData.startDate ? new Date(formData.startDate) : null}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setFormData({ ...formData, startDate: newValue.toISOString().split('T')[0] });
+                    } else {
+                      setFormData({ ...formData, startDate: '' });
+                    }
+                  }}
+                  format="MM/dd/yyyy"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      required: true,
+                    },
+                  }}
+                />
+              </Box>
 
-            <TextField
-              fullWidth
-              label="End Date"
-              type="date"
-              value={formData.endDate}
-              onChange={(e) => setFormData({ ...formData, endDate: e.target.value })}
-              margin="normal"
-              required
-              InputLabelProps={{ shrink: true }}
-            />
+              <Box sx={{ mt: 2 }}>
+                <DatePicker
+                  label="End Date"
+                  value={formData.endDate ? new Date(formData.endDate) : null}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setFormData({ ...formData, endDate: newValue.toISOString().split('T')[0] });
+                    } else {
+                      setFormData({ ...formData, endDate: '' });
+                    }
+                  }}
+                  format="MM/dd/yyyy"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      required: true,
+                    },
+                  }}
+                />
+              </Box>
+            </LocalizationProvider>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleCloseDialog}>Cancel</Button>

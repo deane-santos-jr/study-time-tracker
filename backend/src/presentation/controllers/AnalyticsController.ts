@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { GetAnalytics } from '../../application/use-cases/analytics/GetAnalytics';
-import { IStudySessionRepository } from '../../domain/interfaces/IStudySessionRepository';
-import { ISubjectRepository } from '../../domain/interfaces/ISubjectRepository';
+import { IStudySessionRepository } from '../../domain/repositories/IStudySessionRepository';
+import { ISubjectRepository } from '../../domain/repositories/ISubjectRepository';
 
 export class AnalyticsController {
   constructor(
@@ -16,12 +16,12 @@ export class AnalyticsController {
       const query: any = {};
       if (startDate) {
         const start = new Date(startDate as string);
-        start.setHours(0, 0, 0, 0); // Set to start of day
+        start.setHours(0, 0, 0, 0); 
         query.startDate = start;
       }
       if (endDate) {
         const end = new Date(endDate as string);
-        end.setHours(23, 59, 59, 999); // Set to end of day
+        end.setHours(23, 59, 59, 999); 
         query.endDate = end;
       }
       if (subjectId) {

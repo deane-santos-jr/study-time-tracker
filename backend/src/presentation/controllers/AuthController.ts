@@ -83,7 +83,7 @@ export class AuthController {
     try {
       const getUserProfile = new GetUserProfile(this.userRepository);
 
-      const userId = req.userId!; // Set by authenticate middleware
+      const userId = req.userId!;
       const user = await getUserProfile.execute(userId);
 
       res.status(200).json({

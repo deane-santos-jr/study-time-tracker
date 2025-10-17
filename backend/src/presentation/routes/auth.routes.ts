@@ -7,7 +7,6 @@ import { z } from 'zod';
 const router = Router();
 const authController = new AuthController();
 
-// Validation schemas
 const registerSchema = z.object({
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
@@ -24,7 +23,6 @@ const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
-// Public routes
 router.post(
   '/register',
   validate(registerSchema),
@@ -43,7 +41,6 @@ router.post(
   authController.refreshToken.bind(authController)
 );
 
-// Protected routes
 router.get('/profile', authenticate, authController.getProfile.bind(authController));
 
 router.post('/logout', authenticate, authController.logout.bind(authController));

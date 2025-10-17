@@ -41,6 +41,9 @@ export class StudySessionEntity {
   @Column({ name: 'break_count', type: 'int', default: 0 })
   breakCount!: number;
 
+  @Column({ name: 'accumulated_pause_time', type: 'int', default: 0 })
+  accumulatedPauseTime!: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

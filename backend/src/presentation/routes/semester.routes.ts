@@ -7,7 +7,6 @@ import { z } from 'zod';
 const router = Router();
 const semesterController = new SemesterController();
 
-// Validation schemas
 const createSemesterSchema = z.object({
   name: z.string().min(1, 'Semester name is required').max(100, 'Name too long'),
   startDate: z.string().or(z.date()).refine((val) => !isNaN(Date.parse(val.toString())), {
@@ -29,10 +28,8 @@ const updateSemesterSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
-// All routes require authentication
 router.use(authenticate);
 
-// Routes
 router.post('/', validate(createSemesterSchema), semesterController.create.bind(semesterController));
 router.get('/', semesterController.getAll.bind(semesterController));
 router.get('/active', semesterController.getActive.bind(semesterController));

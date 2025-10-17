@@ -12,18 +12,15 @@ export class UpdateSubject {
   constructor(private subjectRepository: ISubjectRepository) {}
 
   async execute(userId: string, subjectId: string, dto: UpdateSubjectDTO): Promise<Subject> {
-    // Find subject
     const subject = await this.subjectRepository.findById(subjectId);
     if (!subject) {
       throw new NotFoundError('Subject not found');
     }
 
-    // Check ownership
     if (subject.userId !== userId) {
       throw new ForbiddenError('You do not have permission to update this subject');
     }
 
-    // Validate and update
     if (dto.name !== undefined) {
       if (dto.name.trim().length === 0) {
         throw new ValidationError('Subject name cannot be empty');
@@ -45,7 +42,6 @@ export class UpdateSubject {
       subject.updateIcon(dto.icon);
     }
 
-    // Save
     return await this.subjectRepository.update(subject);
   }
 

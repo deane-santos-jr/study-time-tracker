@@ -1,5 +1,5 @@
-import { IStudySessionRepository } from '../../../domain/interfaces/IStudySessionRepository';
-import { ISubjectRepository } from '../../../domain/interfaces/ISubjectRepository';
+import { IStudySessionRepository } from '../../../domain/repositories/IStudySessionRepository';
+import { ISubjectRepository } from '../../../domain/repositories/ISubjectRepository';
 
 interface AnalyticsQuery {
   startDate?: Date;

@@ -10,34 +10,34 @@ export class StopSession {
   ) {}
 
   async execute(userId: string, sessionId: string): Promise<StudySession> {
-    // Find session
     const session = await this.sessionRepository.findById(sessionId);
     if (!session) {
       throw new NotFoundError('Session not found');
     }
 
-    // Check ownership
     if (session.userId !== userId) {
       throw new ValidationError('Session does not belong to you');
     }
 
-    // Get all breaks for this session
     const breaks = await this.breakRepository.findBySessionId(session.id);
 
-    // End any active break
     const activeBreak = breaks.find((b) => b.endTime === null);
     if (activeBreak) {
       activeBreak.end();
       await this.breakRepository.update(activeBreak);
     }
 
-    // Calculate total break time
     const totalBreakTime = breaks.reduce((sum, b) => sum + (b.duration || 0), 0);
 
-    // Stop the session
-    session.stop(totalBreakTime);
+    let totalPauseTime = session.accumulatedPauseTime;
+    if (session.status === 'PAUSED' && session.pausedAt && !activeBreak) {
+      const currentPauseDuration = Math.floor((new Date().getTime() - session.pausedAt.getTime()) / 1000);
+      totalPauseTime += currentPauseDuration;
+      session.accumulatedPauseTime = totalPauseTime;
+    }
 
-    // Update session
+    session.stop(totalBreakTime, totalPauseTime);
+
     return await this.sessionRepository.update(session);
   }
 }

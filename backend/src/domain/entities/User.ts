@@ -2,7 +2,7 @@ export class User {
   constructor(
     public readonly id: string,
     public email: string,
-    public password: string, // hashed
+    public password: string, 
     public firstName: string,
     public lastName: string,
     public isActive: boolean,

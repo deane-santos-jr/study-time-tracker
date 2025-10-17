@@ -1,0 +1,7 @@
+version: "2"
+authtoken: 349aRv2ydY4MBClZJfGdnXxIqxa_7CpHHJKTVMp4YhifQ6YYf
+tunnels:
+  frontend:
+    proto: http
+    addr: 3001
+    domain: convallariaceous-guillermo-overfiercely.ngrok-free.dev
