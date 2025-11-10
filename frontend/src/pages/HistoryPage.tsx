@@ -25,16 +25,19 @@ import {
   DialogActions,
   Button,
   Alert,
+  TextField,
+  Rating,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { FilterList, Refresh, Delete as DeleteIcon } from '@mui/icons-material';
+import { FilterList, Refresh, Delete as DeleteIcon, NoteAdd as NoteAddIcon, Note as NoteIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { MainLayout } from '../components/layout/MainLayout';
 import { sessionService } from '../services/sessionService';
 import { subjectService } from '../services/subjectService';
-import type { StudySession, Subject } from '../types';
+import { noteService } from '../services/noteService';
+import type { StudySession, Subject, Note } from '../types';
 
 const HistoryPage: React.FC = () => {
   const [sessions, setSessions] = useState<StudySession[]>([]);
@@ -51,6 +54,12 @@ const HistoryPage: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
   const [deleteError, setDeleteError] = useState<string>('');
+
+  // Note dialog states
+  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState<StudySession | null>(null);
+  const [currentNote, setCurrentNote] = useState<Note | null>(null);
+  const [noteLoading, setNoteLoading] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -187,6 +196,105 @@ const HistoryPage: React.FC = () => {
     } catch (error) {
       console.error('Failed to delete session:', error);
       setDeleteError('Failed to delete session. Please try again.');
+    }
+  };
+
+  const handleNoteClick = async (session: StudySession) => {
+    setSelectedSession(session);
+    setNoteLoading(true);
+    setNoteDialogOpen(true);
+
+    try {
+      const note = await noteService.getBySession(session.id);
+      setCurrentNote(note);
+    } catch (error) {
+      console.error('Failed to load note:', error);
+      setCurrentNote(null);
+    } finally {
+      setNoteLoading(false);
+    }
+  };
+
+  const handleNoteClose = () => {
+    setNoteDialogOpen(false);
+    setSelectedSession(null);
+    setCurrentNote(null);
+  };
+
+  const [noteContent, setNoteContent] = useState('');
+  const [noteTopics, setNoteTopics] = useState('');
+  const [noteDifficulty, setNoteDifficulty] = useState<number | null>(null);
+  const [noteFocus, setNoteFocus] = useState<number | null>(null);
+  const [noteError, setNoteError] = useState('');
+  const [noteSaving, setNoteSaving] = useState(false);
+
+  useEffect(() => {
+    if (currentNote) {
+      setNoteContent(currentNote.content || '');
+      setNoteTopics(currentNote.topics || '');
+      setNoteDifficulty(currentNote.difficultyLevel || null);
+      setNoteFocus(currentNote.focusLevel || null);
+    } else {
+      setNoteContent('');
+      setNoteTopics('');
+      setNoteDifficulty(null);
+      setNoteFocus(null);
+    }
+    setNoteError('');
+  }, [currentNote]);
+
+  const handleNoteSave = async () => {
+    if (!selectedSession) return;
+
+    if (!noteContent.trim()) {
+      setNoteError('Note content is required');
+      return;
+    }
+
+    try {
+      setNoteSaving(true);
+      setNoteError('');
+
+      if (currentNote) {
+        // Update existing note
+        await noteService.update(currentNote.id, {
+          content: noteContent,
+          topics: noteTopics || undefined,
+          difficultyLevel: noteDifficulty || undefined,
+          focusLevel: noteFocus || undefined,
+        });
+      } else {
+        // Create new note
+        await noteService.create({
+          sessionId: selectedSession.id,
+          content: noteContent,
+          topics: noteTopics || undefined,
+          difficultyLevel: noteDifficulty || undefined,
+          focusLevel: noteFocus || undefined,
+        });
+      }
+
+      handleNoteClose();
+    } catch (error: any) {
+      console.error('Failed to save note:', error);
+      setNoteError(error.response?.data?.message || 'Failed to save note. Please try again.');
+    } finally {
+      setNoteSaving(false);
+    }
+  };
+
+  const handleNoteDelete = async () => {
+    if (!currentNote) return;
+
+    try {
+      setNoteSaving(true);
+      await noteService.delete(currentNote.id);
+      handleNoteClose();
+    } catch (error) {
+      console.error('Failed to delete note:', error);
+      setNoteError('Failed to delete note. Please try again.');
+    } finally {
+      setNoteSaving(false);
     }
   };
 
@@ -393,6 +501,15 @@ const HistoryPage: React.FC = () => {
                       />
                     </TableCell>
                     <TableCell align="center">
+                      <Tooltip title="View/Add Note">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleNoteClick(session)}
+                        >
+                          <NoteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="Delete Session">
                         <IconButton
                           size="small"
@@ -439,6 +556,116 @@ const HistoryPage: React.FC = () => {
               autoFocus
             >
               Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Note Dialog */}
+        <Dialog
+          open={noteDialogOpen}
+          onClose={handleNoteClose}
+          maxWidth="md"
+          fullWidth
+        >
+          <DialogTitle>
+            {currentNote ? 'Edit Session Note' : 'Add Session Note'}
+          </DialogTitle>
+          <DialogContent>
+            {noteLoading ? (
+              <Box display="flex" justifyContent="center" py={4}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                {noteError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {noteError}
+                  </Alert>
+                )}
+
+                {selectedSession && (
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      Session: {getSubjectName(selectedSession.subjectId)} • {format(new Date(selectedSession.startTime), 'MMM dd, yyyy hh:mm a')}
+                    </Typography>
+                  </Box>
+                )}
+
+                <TextField
+                  fullWidth
+                  multiline
+                  rows={4}
+                  label="Note Content *"
+                  value={noteContent}
+                  onChange={(e) => setNoteContent(e.target.value)}
+                  placeholder="What did you study? Key takeaways, reflections, or important points..."
+                  sx={{ mb: 2 }}
+                />
+
+                <TextField
+                  fullWidth
+                  label="Topics Covered"
+                  value={noteTopics}
+                  onChange={(e) => setNoteTopics(e.target.value)}
+                  placeholder="e.g., Linear Algebra, Calculus, React Hooks"
+                  helperText="Separate multiple topics with commas"
+                  sx={{ mb: 2 }}
+                />
+
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <Typography component="legend" variant="body2" gutterBottom>
+                      Difficulty Level
+                    </Typography>
+                    <Rating
+                      name="difficulty-rating"
+                      value={noteDifficulty}
+                      onChange={(_, newValue) => setNoteDifficulty(newValue)}
+                      max={5}
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      How challenging was this session?
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={12} sm={6}>
+                    <Typography component="legend" variant="body2" gutterBottom>
+                      Focus Level
+                    </Typography>
+                    <Rating
+                      name="focus-rating"
+                      value={noteFocus}
+                      onChange={(_, newValue) => setNoteFocus(newValue)}
+                      max={5}
+                    />
+                    <Typography variant="caption" color="text.secondary" display="block">
+                      How focused were you?
+                    </Typography>
+                  </Grid>
+                </Grid>
+              </>
+            )}
+          </DialogContent>
+          <DialogActions>
+            {currentNote && (
+              <Button
+                onClick={handleNoteDelete}
+                color="error"
+                disabled={noteSaving}
+              >
+                Delete Note
+              </Button>
+            )}
+            <Box sx={{ flex: 1 }} />
+            <Button onClick={handleNoteClose} disabled={noteSaving}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleNoteSave}
+              variant="contained"
+              disabled={noteSaving || noteLoading}
+            >
+              {noteSaving ? 'Saving...' : currentNote ? 'Update' : 'Save'}
             </Button>
           </DialogActions>
         </Dialog>

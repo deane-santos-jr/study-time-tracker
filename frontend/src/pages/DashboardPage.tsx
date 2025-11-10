@@ -91,7 +91,7 @@ export const DashboardPage = () => {
     return subject ? `${subject.icon} ${topSubject.subjectName}` : topSubject.subjectName;
   };
 
-  const weeklyAverage = weeklyStats ? Math.floor(weeklyStats.totalStudyTime / 7) : 0;
+  const weeklyAverage = weeklyStats ? Math.floor(weeklyStats.totalEffectiveTime / 7) : 0;
 
   return (
     <MainLayout>
@@ -126,7 +126,7 @@ export const DashboardPage = () => {
                       {loading ? (
                         <CircularProgress size={24} sx={{ color: 'white' }} />
                       ) : (
-                        formatDuration(todayStats?.totalStudyTime || 0)
+                        formatDuration(todayStats?.totalEffectiveTime || 0)
                       )}
                     </Typography>
                   </Box>

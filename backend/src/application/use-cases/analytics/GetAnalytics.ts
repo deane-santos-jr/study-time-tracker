@@ -70,7 +70,12 @@ export class GetAnalytics {
       (sum, session) => sum + (session.effectiveStudyTime || 0),
       0
     );
-    const totalBreakTime = totalStudyTime - totalEffectiveTime;
+    const totalPauseTime = completedSessions.reduce(
+      (sum, session) => sum + (session.accumulatedPauseTime || 0),
+      0
+    );
+    // totalBreakTime = totalDuration - effectiveTime - pauseTime
+    const totalBreakTime = totalStudyTime - totalEffectiveTime - totalPauseTime;
     const totalSessions = completedSessions.length;
     const averageSessionDuration = totalSessions > 0 ? totalEffectiveTime / totalSessions : 0;
 

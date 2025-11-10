@@ -88,6 +88,34 @@ export interface StartSessionData {
   subjectId: string;
 }
 
+// Note types
+export interface Note {
+  id: string;
+  sessionId: string;
+  userId: string;
+  content: string;
+  topics?: string;
+  difficultyLevel?: number;
+  focusLevel?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateNoteData {
+  sessionId: string;
+  content: string;
+  topics?: string;
+  difficultyLevel?: number;
+  focusLevel?: number;
+}
+
+export interface UpdateNoteData {
+  content?: string;
+  topics?: string;
+  difficultyLevel?: number;
+  focusLevel?: number;
+}
+
 // Auth types
 export interface LoginCredentials {
   email: string;

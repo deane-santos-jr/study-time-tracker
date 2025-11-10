@@ -11,6 +11,7 @@ import subjectRoutes from './presentation/routes/subject.routes';
 import sessionRoutes from './presentation/routes/session.routes';
 import analyticsRoutes from './presentation/routes/analytics.routes';
 import semesterRoutes from './presentation/routes/semester.routes';
+import noteRoutes from './presentation/routes/note.routes';
 
 // Load environment variables
 dotenv.config();
@@ -60,6 +61,7 @@ class Server {
     this.app.use('/api/v1/subjects', subjectRoutes);
     this.app.use('/api/v1/sessions', sessionRoutes);
     this.app.use('/api/v1/analytics', analyticsRoutes);
+    this.app.use('/api/v1/notes', noteRoutes);
 
     // 404 handler
     this.app.use('*', (req, res) => {
@@ -99,6 +101,7 @@ class Server {
         console.log(`📚 Subjects API: http://localhost:${this.port}/api/v1/subjects`);
         console.log(`⏱️  Sessions API: http://localhost:${this.port}/api/v1/sessions`);
         console.log(`📊 Analytics API: http://localhost:${this.port}/api/v1/analytics`);
+        console.log(`📝 Notes API: http://localhost:${this.port}/api/v1/notes`);
       });
     } catch (error) {
       console.error('Failed to start server:', error);
