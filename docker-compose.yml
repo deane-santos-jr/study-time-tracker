@@ -1,6 +1,6 @@
 services:
   mysql:
-    image: mysql:8.0
+    image: mysql:8.0.40
     container_name: timetracker-mysql
     restart: unless-stopped
     ports:
@@ -16,17 +16,13 @@ services:
     volumes:
       - timetracker-mysql-data:/var/lib/mysql
     healthcheck:
-      test:
-        - CMD
-        - mysqladmin
-        - ping
-        - -h
-        - localhost
-        - -uroot
-        - -p${MYSQL_ROOT_PASSWORD:-rootpw_dev_only}
+      # Credential-free ping: MySQL 8.0 lets `mysqladmin ping` succeed without
+      # auth, keeping the root password out of `docker inspect` / `ps`.
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
       timeout: 5s
       retries: 20
+      start_period: 30s
 
 volumes:
   timetracker-mysql-data:

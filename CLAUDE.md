@@ -34,6 +34,8 @@ TypeORM CLI uses `backend/ormconfig.ts` as the DataSource. Migrations live in `s
 ### Environment
 Backend needs `backend/.env` (copy from `.env.example`). Required: `DB_*`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `CORS_ORIGIN`. MySQL database name defaults to `timetracker` with `utf8mb4_unicode_ci`.
 
+Alternatively, run `docker compose up -d` from the repo root to start a MySQL 8.0 container on host port **3307** instead of installing MySQL locally. Copy the root `.env.example` to `.env` to override the default dev credentials, and set `backend/.env` to `DB_HOST=localhost`, `DB_PORT=3307` so the natively-run backend connects to the container.
+
 ## Architecture
 
 ### Backend — Clean Architecture (strict layer boundaries)
