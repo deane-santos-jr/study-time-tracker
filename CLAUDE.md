@@ -99,3 +99,11 @@ When adding an endpoint, add the typed call to the matching `services/*.ts` file
 - Domain entities and TypeORM entities are deliberately separate types — do not collapse them. Repositories map between the two.
 - All API responses follow `{ success: boolean, ... }` shape (see `index.ts` 404 handler and health route).
 - The `.github/workflows/` setup runs `anthropics/claude-code-action` on PRs and `@claude` mentions in issues/comments — be aware that PR comments may trigger automated Claude reviews.
+
+## Design System
+
+Always read `DESIGN.md` at the repo root before making any visual or UI decisions in `mobile/` or in the eventual marketing site. The Warm Studygram palette (Pulp / Cocoa Ink / Riso Fig / Matcha Stain / Honeyed / Library Blue / Plum Wine / Clay), the Fraunces / Geist / Caveat type system, the share-card layout, the Margot mascot brief, the motion tokens, and the anti-slop hard rules all live there.
+
+Do not deviate without explicit user approval — and never violate the hard rules (no `#FFFFFF`, no `#000000`, no Inter / Roboto / Space Grotesk, no green-as-growth-primary, no confetti / number-roll on PR celebrations). In `/qa` and `/review` flows, flag any code that doesn't match `DESIGN.md`.
+
+The working brand name is `steeped` (recommended, pending trademark + `.app` domain availability check per ADR-0014). Backup shortlist: `nook`, `brew`, `dorm`, `pip`.
