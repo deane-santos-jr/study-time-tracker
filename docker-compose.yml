@@ -1,0 +1,25 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: timetracker-mysql
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw_dev_only
+      MYSQL_DATABASE: timetracker
+      MYSQL_USER: timetracker
+      MYSQL_PASSWORD: 8slTY1w4UXIA2DFXvgkwGr2E
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - timetracker-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpw_dev_only"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  timetracker-mysql-data:
