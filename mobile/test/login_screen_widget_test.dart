@@ -30,9 +30,10 @@ void main() {
       ),
     );
 
-    expect(find.text('Sign in'), findsWidgets);
-    expect(find.text('Email *'), findsOneWidget);
-    expect(find.text('Password *'), findsOneWidget);
-    expect(find.text("Don't have an account? Sign up"), findsOneWidget);
+    expect(find.text('sign in'), findsOneWidget);
+    expect(find.text('welcome back'), findsOneWidget);
+    expect(find.text('email *'), findsOneWidget);
+    expect(find.text('password *'), findsOneWidget);
+    expect(find.text('new here? create an account'), findsOneWidget);
   });
 }

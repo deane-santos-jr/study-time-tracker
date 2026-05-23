@@ -31,7 +31,8 @@ export class StartSession {
     const session = StudySession.create(
       uuidv4(),
       userId,
-      dto.subjectId
+      dto.subjectId,
+      subject.semesterId
     );
 
     const createdSession = await this.sessionRepository.create(session);

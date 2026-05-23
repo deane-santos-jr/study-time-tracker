@@ -20,6 +20,9 @@ export class StudySessionEntity {
   @Column({ name: 'subject_id' })
   subjectId!: string;
 
+  @Column({ name: 'semester_id' })
+  semesterId!: string;
+
   @Column({ name: 'start_time', type: 'datetime' })
   startTime!: Date;
 

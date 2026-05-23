@@ -27,7 +27,10 @@ export class UpdateSession {
       throw new ValidationError('You do not have permission to update this session');
     }
 
-    // Validate subject if being updated
+    // Validate subject if being updated. Capture its semesterId so the session
+    // moves with the subject — a session always belongs to the subject's
+    // current semester (FK is NOT NULL).
+    let newSemesterId = session.semesterId;
     if (dto.subjectId) {
       const subject = await this.subjectRepository.findById(dto.subjectId);
       if (!subject) {
@@ -36,6 +39,7 @@ export class UpdateSession {
       if (subject.userId !== userId) {
         throw new ValidationError('Subject does not belong to you');
       }
+      newSemesterId = subject.semesterId;
     }
 
     // Parse and validate times
@@ -60,6 +64,7 @@ export class UpdateSession {
       session.id,
       session.userId,
       dto.subjectId || session.subjectId,
+      newSemesterId,
       newStartTime,
       newEndTime,
       session.pausedAt,

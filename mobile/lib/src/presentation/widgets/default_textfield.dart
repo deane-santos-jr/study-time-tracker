@@ -57,39 +57,29 @@ class _DefaultTextfieldState extends State<DefaultTextfield> {
       children: [
         if (widget.label != null)
           Padding(
-            padding: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.only(bottom: Spacing.sm),
             child: Text(
               widget.required ? '${widget.label!} *' : widget.label!,
               style: theme.textTheme.labelMedium,
             ),
           ),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(kRadiusMd),
-            border: Border.all(color: kGray200, width: 1),
-          ),
-          child: TextField(
-            controller: _controller,
-            keyboardType: widget.keyboardType,
-            textInputAction: widget.textInputAction,
-            obscureText: _obscure,
-            onSubmitted: widget.onSubmitted,
-            decoration: InputDecoration(
-              hintText: widget.placeholder,
-              border: InputBorder.none,
-              enabledBorder: InputBorder.none,
-              focusedBorder: InputBorder.none,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-              suffixIcon: widget.showPasswordToggle
-                  ? IconButton(
-                      icon: Icon(_obscure
-                          ? Icons.visibility_off
-                          : Icons.visibility),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                    )
-                  : null,
-            ),
+        TextField(
+          controller: _controller,
+          keyboardType: widget.keyboardType,
+          textInputAction: widget.textInputAction,
+          obscureText: _obscure,
+          onSubmitted: widget.onSubmitted,
+          style: theme.textTheme.bodyMedium,
+          decoration: InputDecoration(
+            hintText: widget.placeholder,
+            suffixIcon: widget.showPasswordToggle
+                ? IconButton(
+                    icon: Icon(
+                      _obscure ? Icons.visibility_off : Icons.visibility,
+                    ),
+                    onPressed: () => setState(() => _obscure = !_obscure),
+                  )
+                : null,
           ),
         ),
       ],

@@ -11,14 +11,15 @@ export class StudySession {
     public readonly id: string,
     public readonly userId: string,
     public readonly subjectId: string,
+    public readonly semesterId: string,
     public readonly startTime: Date,
     public endTime: Date | undefined,
     public pausedAt: Date | undefined,
     public status: SessionStatus,
-    public totalDuration: number | undefined, 
-    public effectiveStudyTime: number | undefined, 
+    public totalDuration: number | undefined,
+    public effectiveStudyTime: number | undefined,
     public breakCount: number,
-    public accumulatedPauseTime: number, 
+    public accumulatedPauseTime: number,
     public readonly createdAt: Date,
     public updatedAt: Date
   ) {}
@@ -74,12 +75,14 @@ export class StudySession {
   static create(
     id: string,
     userId: string,
-    subjectId: string
+    subjectId: string,
+    semesterId: string
   ): StudySession {
     return new StudySession(
       id,
       userId,
       subjectId,
+      semesterId,
       new Date(),
       undefined,
       undefined,

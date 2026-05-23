@@ -27,6 +27,13 @@ class AuthInterceptor extends Interceptor {
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
+    // The refresh call must bypass this interceptor: otherwise it would
+    // recursively wait on the very refresh it's trying to perform,
+    // deadlocking every request after a cold launch with a stored refresh
+    // token but no in-memory access token.
+    if (options.path.contains(_refreshPath)) {
+      return handler.next(options);
+    }
     if (!options.headers.containsKey('Authorization')) {
       if (await _tokenStorageService.isAccessTokenExpired()) {
         await _tryRefresh();

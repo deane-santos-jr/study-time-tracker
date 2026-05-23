@@ -109,3 +109,22 @@ Always read `DESIGN.md` at the repo root before making any visual or UI decision
 Do not deviate without explicit user approval — and never violate the hard rules (no `#FFFFFF`, no `#000000`, no Inter / Roboto / Space Grotesk, no green-as-growth-primary, no confetti / number-roll on PR celebrations). In `/qa` and `/review` flows, flag any code that doesn't match `DESIGN.md`.
 
 The working brand name is `steeped` (recommended, pending trademark + `.app` domain availability check per ADR-0014). Backup shortlist: `nook`, `brew`, `dorm`, `pip`.
+
+### Mobile implementation pattern — "the home tile"
+
+The dashboard's home-tile composition (see `mobile/lib/src/presentation/modules/study/dashboard/screens/dashboard_screen.dart` + `widgets/session_tile.dart`) is the **canonical visual language** for every mobile screen. New screens — subjects, semester, analytics, profile, settings, share-card editor, anything we add — must look like they came out of the same notebook. **This is a hard requirement, not a suggestion.**
+
+Required primitives:
+
+- **Cards / tiles:** `mobile/lib/src/presentation/widgets/pulp_tile.dart`. `PulpTile` renders the borderless cream tile (`Radii.lg`) backed by `colorScheme.surfaceContainer`. Pass `inset: true` for nested chips / sub-tiles inside a tile (deeper cream from `surfaceContainerHigh`). Never hand-roll a `Container` + `BoxDecoration` for a card — extend `PulpTile`.
+- **Buttons:** `mobile/lib/src/presentation/widgets/default_button.dart`. `DefaultButton(type: ButtonType.primary)` is the Cocoa Ink pill (Pulp label) — the right choice for almost every action. `ButtonType.accent` (Riso Fig) is reserved for celebratory / brand-forward moments like share-card heroes and PR celebrations — use sparingly. `secondary` is an ink-at-8% soft fill; `ghost` is transparent with ink label. The theme's raw `ElevatedButton` defaults to the same ink pill so non-`DefaultButton` call sites still land on pattern.
+- **Cream stack tokens** (in `mobile/lib/core/configs/themes.dart`):
+  - `kPulp` / `kPulpNight` — page surface
+  - `kPulpTile` / `kPulpTileNight` — card surface (Material 3 `surfaceContainer`)
+  - `kPulpInset` / `kPulpInsetNight` — chip-inside-card surface (Material 3 `surfaceContainerHigh`)
+- **Bottom nav:** floating Cocoa Ink pill in `study_shell_screen.dart` with `extendBody: true`. Scrollable bodies must reserve ≥96 px of bottom padding so the last row clears the pill.
+- **Copy / casing:** lowercase across UI chrome, labels, hints, and copy ("good morning.", "pause", "your subjects", "sign in", "email"). The only exceptions are user-entered data (subject names, emails) and proper nouns. Title Case / Sentence case in chrome reads as off-pattern.
+- **Subject color usage:** subject color lives in chips, dots, and the "your subjects" color square — never as the dominant timer color. The home tile shows the timer in Cocoa Ink and confines subject identity to the chip + accent dot.
+- **Top app bar:** keep minimal — no title on the dashboard, just a "..." (`Icons.more_horiz_rounded`) `PopupMenuButton` for actions like sign-out. Other screens may use `MainAppBar` with a Fraunces-italic title.
+
+When auditing UI in `/qa`, `/review`, or design-review flows, flag any screen that doesn't compose from these primitives or that violates the casing rule.

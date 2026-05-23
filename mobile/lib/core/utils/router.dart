@@ -6,11 +6,14 @@ import 'package:study_time_tracker/src/presentation/modules/authentication/scree
 import 'package:study_time_tracker/src/presentation/modules/authentication/screens/register_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/screens/dashboard_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/shell/screens/study_shell_screen.dart';
+import 'package:study_time_tracker/src/presentation/modules/subjects/screens/subject_form_screen.dart';
+import 'package:study_time_tracker/src/presentation/modules/subjects/screens/subjects_list_screen.dart';
 
 GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
       debugLogDiagnostics: kDebugMode,
       initialLocation: '/dashboard',
-      refreshListenable: _ValueListenableAdapter(tokenStorageService.isAuthenticated),
+      refreshListenable:
+          _ValueListenableAdapter(tokenStorageService.isAuthenticated),
       redirect: (context, state) {
         final isAuthenticated = tokenStorageService.isAuthenticated.value;
         final isPublic = state.matchedLocation == '/login' ||
@@ -46,12 +49,41 @@ GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
                 ),
               ],
             ),
+            // MARK: subjects-routes-start
+            StatefulShellBranch(
+              routes: [
+                GoRoute(
+                  path: '/subjects',
+                  pageBuilder: (_, state) =>
+                      _page(const SubjectsListScreen(), state.pageKey),
+                  routes: [
+                    GoRoute(
+                      path: 'new',
+                      pageBuilder: (_, state) => _page(
+                        const SubjectFormScreen(),
+                        state.pageKey,
+                      ),
+                    ),
+                    GoRoute(
+                      path: ':id',
+                      pageBuilder: (_, state) => _page(
+                        SubjectFormScreen(
+                          subjectId: state.pathParameters['id'],
+                        ),
+                        state.pageKey,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            // MARK: subjects-routes-end
             StatefulShellBranch(
               routes: [
                 GoRoute(
                   path: '/analytics',
                   pageBuilder: (_, state) => _page(
-                    const _Placeholder(title: 'Analytics'),
+                    const _Placeholder(title: 'analytics'),
                     state.pageKey,
                   ),
                 ),
@@ -62,7 +94,7 @@ GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
                 GoRoute(
                   path: '/profile',
                   pageBuilder: (_, state) => _page(
-                    const _Placeholder(title: 'Profile'),
+                    const _Placeholder(title: 'profile'),
                     state.pageKey,
                   ),
                 ),
@@ -109,9 +141,17 @@ class _Placeholder extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(title)),
-      body: Center(child: Text('$title screen — coming soon')),
+      body: Center(
+        child: Text(
+          '$title — coming soon',
+          style: theme.textTheme.bodyLarge?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+          ),
+        ),
+      ),
     );
   }
 }
