@@ -27,6 +27,7 @@ interface AnalyticsResponse {
   totalBreakTime: number;
   totalSessions: number;
   averageSessionDuration: number;
+  longestEffectiveSession: number;
   subjectStats: SubjectStats[];
   dailyStats: DailyStats[];
 }
@@ -78,6 +79,10 @@ export class GetAnalytics {
     const totalBreakTime = totalStudyTime - totalEffectiveTime - totalPauseTime;
     const totalSessions = completedSessions.length;
     const averageSessionDuration = totalSessions > 0 ? totalEffectiveTime / totalSessions : 0;
+    const longestEffectiveSession = completedSessions.reduce(
+      (max, session) => Math.max(max, session.effectiveStudyTime || 0),
+      0
+    );
 
     // Calculate subject stats
     const subjectMap = new Map<string, { totalTime: number; count: number }>();
@@ -130,6 +135,7 @@ export class GetAnalytics {
       totalBreakTime,
       totalSessions,
       averageSessionDuration,
+      longestEffectiveSession,
       subjectStats,
       dailyStats,
     };

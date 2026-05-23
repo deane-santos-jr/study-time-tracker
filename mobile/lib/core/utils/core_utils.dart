@@ -49,6 +49,19 @@ class CoreUtils {
     return h > 0 ? '$h:$mm:$ss' : '$mm:$ss';
   }
 
+  /// "Xh YYm" style for totals shown on the home tile / subjects list.
+  /// `dashOnZero` returns `—` when the total is zero, which is the right
+  /// affordance for stat cells; pass `false` for inline rows where `0m` is
+  /// preferable.
+  static String formatHm(int seconds, {bool dashOnZero = false}) {
+    if (seconds <= 0) return dashOnZero ? '—' : '0m';
+    final h = seconds ~/ 3600;
+    final m = (seconds % 3600) ~/ 60;
+    if (h == 0) return '${m}m';
+    if (m == 0) return '${h}h';
+    return '${h}h ${m.toString().padLeft(2, '0')}m';
+  }
+
   static void showNotification({
     required String message,
     required bool success,
@@ -56,13 +69,22 @@ class CoreUtils {
   }) {
     ScaffoldMessenger.of(context).removeCurrentSnackBar();
     FocusScope.of(context).unfocus();
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final bg = success
+        ? (isDark ? kMatchaStainNight : kMatchaStain)
+        : theme.colorScheme.error;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         duration: const Duration(milliseconds: 4000),
-        backgroundColor: success ? kSuccessBase : kErrorBase,
+        backgroundColor: bg,
         content: Text(
           message,
-          style: const TextStyle(color: Colors.white),
+          style: TextStyle(
+            color: kPulp,
+            fontFamily: kFontGeist,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

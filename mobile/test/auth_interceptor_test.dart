@@ -15,6 +15,8 @@ class _MockTokenStorage extends Mock implements ITokenStorageService {}
 
 class _MockErrorHandler extends Mock implements ErrorInterceptorHandler {}
 
+class _MockRequestHandler extends Mock implements RequestInterceptorHandler {}
+
 class _FakeRequestOptions extends Fake implements RequestOptions {}
 
 class _FakeDioException extends Fake implements DioException {}
@@ -138,5 +140,24 @@ void main() {
 
     verifyNever(() => repo.refreshToken(refreshToken: any(named: 'refreshToken')));
     verify(() => handler.next(err)).called(1);
+  });
+
+  test(
+      'onRequest on /auth/refresh bypasses token logic — prevents '
+      'cold-launch deadlock', () async {
+    // If onRequest tried to refresh on a refresh request, it would await
+    // its own completion forever. This test guards against that path:
+    // the storage's isAccessTokenExpired must NEVER be consulted, and the
+    // refresh repo must NEVER be invoked, when the outgoing request is the
+    // refresh call itself.
+    final options = RequestOptions(path: '/auth/refresh');
+    final handler = _MockRequestHandler();
+
+    await interceptor.onRequest(options, handler);
+
+    verifyNever(() => storage.isAccessTokenExpired());
+    verifyNever(() => repo.refreshToken(refreshToken: any(named: 'refreshToken')));
+    verify(() => handler.next(options)).called(1);
+    expect(options.headers.containsKey('Authorization'), isFalse);
   });
 }

@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:study_time_tracker/core/utils/context_extension.dart';
+import 'package:study_time_tracker/core/configs/themes.dart';
 import 'package:study_time_tracker/core/utils/core_utils.dart';
 import 'package:study_time_tracker/src/presentation/modules/authentication/services/authentication_cubit.dart';
-import 'package:study_time_tracker/src/presentation/widgets/app_bar.dart';
 import 'package:study_time_tracker/src/presentation/widgets/default_button.dart';
 import 'package:study_time_tracker/src/presentation/widgets/default_textfield.dart';
 
@@ -42,6 +41,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return BlocListener<AuthenticationCubit, AuthenticationState>(
       listener: (context, state) {
         if (state is AuthenticationSuccess) {
@@ -55,44 +55,51 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       },
       child: Scaffold(
-        appBar: const MainAppBar(title: 'Study Time Tracker'),
         body: SafeArea(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.symmetric(
+              horizontal: Spacing.lg,
+              vertical: Spacing.xxl,
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text('Sign in', style: context.theme.textTheme.headlineSmall),
-                const SizedBox(height: 8),
+                const SizedBox(height: Spacing.lg),
+                Text('welcome back', style: theme.textTheme.displaySmall),
+                const SizedBox(height: Spacing.xs),
                 Text(
-                  'Track your study sessions across devices.',
-                  style: context.theme.textTheme.bodySmall,
+                  'where were we?',
+                  style: theme.textTheme.bodyLarge?.copyWith(
+                    color: theme.colorScheme.onSurface.withValues(
+                      alpha: InkOpacity.soft,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: Spacing.xxl),
                 DefaultTextfield(
                   controller: _emailController,
-                  label: 'Email',
+                  label: 'email',
                   placeholder: 'you@example.com',
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.next,
                   required: true,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: Spacing.md),
                 DefaultTextfield(
                   controller: _passwordController,
-                  label: 'Password',
-                  placeholder: 'Enter your password',
+                  label: 'password',
+                  placeholder: 'enter your password',
                   obscureText: true,
                   showPasswordToggle: true,
                   textInputAction: TextInputAction.done,
                   required: true,
                   onSubmitted: (_) => _handleLogin(),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: Spacing.lg),
                 BlocBuilder<AuthenticationCubit, AuthenticationState>(
                   builder: (context, state) {
                     return DefaultButton(
-                      title: 'Sign in',
+                      title: 'sign in',
                       fullWidth: true,
                       size: ButtonSize.large,
                       isLoading: state is AuthenticationLoading,
@@ -100,10 +107,10 @@ class _LoginScreenState extends State<LoginScreen> {
                     );
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: Spacing.sm),
                 TextButton(
                   onPressed: () => context.go('/register'),
-                  child: const Text("Don't have an account? Sign up"),
+                  child: const Text('new here? create an account'),
                 ),
               ],
             ),
