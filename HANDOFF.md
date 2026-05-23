@@ -27,9 +27,13 @@ A grill-with-docs design session on 2026-05-23 produced a complete architectural
 11. **Auth on mobile**: `flutter_secure_storage` for refresh token, in-memory access token, silent sliding refresh (15-min access / 30-day sliding refresh), no app-level biometric gate.
 12. **Repo structure**: monorepo — `mobile/` subdir alongside existing `backend/` and `frontend/`.
 13. **Analytics computed on the phone** from local SQLite (consistent with offline-first + client-side PDF). The existing `/analytics/*` endpoints stay in place for the frozen web app.
-14. **Implementation-detail picks** (not ADR'd because reversible):
+14. **Implementation-detail picks** (ADR-0009 now locks the architecture decisions; the rest remain reversible):
     - Local DB: **Drift** (type-safe SQL over SQLite)
-    - State management: **Riverpod**
+    - State management: **Cubit** (`bloc` + `flutter_bloc`) — supersedes the
+      original Riverpod pick. See ADR-0009 for rationale (mirrors the
+      Activesystems `activework-flutter-client` reference architecture).
+    - Dependency injection: **get_it** (ADR-0009).
+    - Routing: **go_router** with `StatefulShellRoute.indexedStack` (ADR-0009).
     - Charts: **fl_chart**
     - HTTP: **dio** (interceptors for auth + sync-queue draining)
     - Android foreground service: **flutter_foreground_task**
@@ -61,7 +65,7 @@ A grill-with-docs design session on 2026-05-23 produced a complete architectural
 
 Picking up from this design plan, in order:
 
-1. **Scaffold `mobile/`** as a Flutter project alongside `backend/` and `frontend/`. Add it to root README / CLAUDE.md as the third subproject. `flutter create mobile --org com.studytimetracker` (adjust org as needed).
+1. ~~**Scaffold `mobile/`** as a Flutter project alongside `backend/` and `frontend/`.~~ **Done 2026-05-23.** `flutter create mobile --project-name study_time_tracker --org com.studytimetracker --platforms=ios,android` produced the scaffold; the layered tree from ADR-0009 (`lib/core/{api,configs,utils}`, `lib/src/{domain,data,presentation}`) was filled in with the auth module (Cubit + state, repository, dio interceptor, secure-storage token service), shared widgets (`DefaultButton`, `DefaultTextfield`, `MainAppBar`), `go_router` with `StatefulShellRoute` for dashboard / analytics / profile, and `get_it` DI in `core/utils/injection_container.dart`. `flutter analyze` passes clean. Drift / firebase / push / pdf packages are declared in `pubspec.yaml` but not yet wired — they become subsequent tasks.
 2. **Backend migrations.** Generate TypeORM migrations in `backend/src/infrastructure/database/migrations/`:
    - Add `current_device_id VARCHAR(36)` to `users`.
    - Create `processed_actions (user_id, client_uuid, action, processed_at)` with `PRIMARY KEY (user_id, client_uuid)`.
