@@ -10,7 +10,12 @@ const kDefaultHeaders = {'Content-Type': 'application/json', 'Accept': '*/*'};
 ///   2. Android emulator: `http://10.0.2.2:3000/api/v1` — emulator-to-host
 ///      loopback, since `localhost` inside the emulator resolves to itself.
 ///   3. iOS simulator / desktop / web: `http://localhost:3000/api/v1`.
-String get kApiBaseUrl {
+///
+/// Resolved once at first access — the underlying inputs (compile-time
+/// `--dart-define` and `Platform.isAndroid`) never change during a run.
+final String kApiBaseUrl = _resolveApiBaseUrl();
+
+String _resolveApiBaseUrl() {
   const override = String.fromEnvironment('API_BASE_URL');
   if (override.isNotEmpty) return override;
   if (Platform.isAndroid) return 'http://10.0.2.2:3000/api/v1';

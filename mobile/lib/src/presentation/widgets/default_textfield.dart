@@ -12,6 +12,7 @@ class DefaultTextfield extends StatefulWidget {
     this.obscureText = false,
     this.showPasswordToggle = false,
     this.keyboardType = TextInputType.text,
+    this.textInputAction,
     this.required = false,
     this.onSubmitted,
   });
@@ -22,6 +23,7 @@ class DefaultTextfield extends StatefulWidget {
   final bool obscureText;
   final bool showPasswordToggle;
   final TextInputType keyboardType;
+  final TextInputAction? textInputAction;
   final bool required;
   final ValueChanged<String>? onSubmitted;
 
@@ -69,6 +71,7 @@ class _DefaultTextfieldState extends State<DefaultTextfield> {
           child: TextField(
             controller: _controller,
             keyboardType: widget.keyboardType,
+            textInputAction: widget.textInputAction,
             obscureText: _obscure,
             onSubmitted: widget.onSubmitted,
             decoration: InputDecoration(

@@ -9,7 +9,6 @@ import 'package:study_time_tracker/src/domain/repositories/authentication_reposi
 import 'package:study_time_tracker/src/domain/services/api_service_intf.dart';
 import 'package:study_time_tracker/src/domain/services/token_storage_service_intf.dart';
 import 'package:study_time_tracker/src/presentation/modules/authentication/services/authentication_cubit.dart';
-import 'package:study_time_tracker/src/presentation/modules/study/shell/service/study_shell_cubit.dart';
 
 final sl = GetIt.instance;
 
@@ -49,7 +48,4 @@ Future<void> init() async {
       sl<ITokenStorageService>(),
     ),
   );
-  // MARK: study-shell-di-start
-  sl.registerFactory(() => StudyShellCubit());
-  // MARK: study-shell-di-end
 }

@@ -107,7 +107,9 @@ class TokenStorageService implements ITokenStorageService {
   Future<void> clearAll() async {
     _accessToken = null;
     _expiresAt = null;
-    await _secureStorage.deleteAll();
+    // Only delete keys this service owns — `deleteAll()` would also wipe
+    // secrets persisted by other packages or features.
+    await _secureStorage.delete(key: _refreshTokenKey);
     _isAuthenticated.value = false;
   }
 }

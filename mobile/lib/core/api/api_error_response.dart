@@ -4,13 +4,6 @@ class APIErrorResponse implements Exception {
     this.statusCode,
   });
 
-  factory APIErrorResponse.fromResponseJson(Map<String, dynamic> json) {
-    return APIErrorResponse(
-      message: (json['message'] as String?) ?? 'Unknown error',
-      statusCode: json['statusCode'] as int?,
-    );
-  }
-
   final String message;
   final int? statusCode;
 

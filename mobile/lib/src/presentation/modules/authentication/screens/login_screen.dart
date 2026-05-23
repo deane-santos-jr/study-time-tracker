@@ -74,6 +74,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   label: 'Email',
                   placeholder: 'you@example.com',
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
                   required: true,
                 ),
                 const SizedBox(height: 16),
@@ -83,7 +84,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   placeholder: 'Enter your password',
                   obscureText: true,
                   showPasswordToggle: true,
+                  textInputAction: TextInputAction.done,
                   required: true,
+                  onSubmitted: (_) => _handleLogin(),
                 ),
                 const SizedBox(height: 24),
                 BlocBuilder<AuthenticationCubit, AuthenticationState>(

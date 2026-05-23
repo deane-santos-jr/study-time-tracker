@@ -1,3 +1,5 @@
+import 'package:flutter/foundation.dart';
+
 class AuthToken {
   AuthToken({
     required this.accessToken,
@@ -15,6 +17,15 @@ class AuthToken {
     } else if (expiresAtRaw is int) {
       expiresAt = DateTime.fromMillisecondsSinceEpoch(expiresAtRaw).toLocal();
     } else {
+      // Backend should always send `expiresAt`. Falling back keeps the app
+      // working, but warn loudly so a contract drift gets noticed.
+      assert(() {
+        debugPrint(
+          'AuthToken.fromJson: missing or unexpected expiresAt '
+          '(${expiresAtRaw?.runtimeType}); falling back to now + 15m',
+        );
+        return true;
+      }());
       expiresAt = DateTime.now().add(const Duration(minutes: 15));
     }
     return AuthToken(
