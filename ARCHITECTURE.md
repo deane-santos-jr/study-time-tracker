@@ -1,5 +1,15 @@
 # Time Tracker Application - Architecture Design
 
+> **Current state lives in `CONTEXT.md` (glossary) and `docs/adr/` (decisions).** This file is the original v1 design plus updates from the mobile rewrite (2026-05). For any contradiction between this file and an ADR, the ADR wins. Notable post-v1 decisions:
+> - ADR-0001 Flutter mobile app (the React web app is **frozen**)
+> - ADR-0002 Offline-first, single-device authority per account
+> - ADR-0003 Wall-clock timer model
+> - ADR-0004 Single `POST /sync` batch endpoint for mobile
+> - ADR-0005 Aggregate snapshots (not event streams) in the sync envelope
+> - ADR-0006 UTC everywhere on the wire and at rest
+> - ADR-0007 Server-driven push notifications (FCM + APNs)
+> - ADR-0008 Client-side PDF export (no backend `/export/*` endpoints)
+
 ## Table of Contents
 1. [Overview](#overview)
 2. [Clean Architecture Layers](#clean-architecture-layers)
@@ -8,8 +18,9 @@
 5. [Database Schema](#database-schema)
 6. [API Specifications](#api-specifications)
 7. [Frontend Architecture](#frontend-architecture)
-8. [Project Structure](#project-structure)
-9. [Technology Stack](#technology-stack)
+8. [Mobile Application](#mobile-application)
+9. [Project Structure](#project-structure)
+10. [Technology Stack](#technology-stack)
 
 ---
 
@@ -63,6 +74,7 @@ A study time tracking application that allows students to track their study sess
 - `Subject` - Represents a subject/course
 - `Break` - Represents a break period during study
 - `Semester` - Represents an academic semester
+- `Note` - A free-text reflection attached to a completed session (content, topics, difficultyLevel 1-5, focusLevel 1-5). 1:1 with StudySession.
 - `TimeBlock` - Value object for time tracking
 
 **Business Rules:**
@@ -392,6 +404,7 @@ CREATE TABLE users (
   password VARCHAR(255) NOT NULL, -- bcrypt hashed
   first_name VARCHAR(100) NOT NULL,
   last_name VARCHAR(100) NOT NULL,
+  current_device_id VARCHAR(36),  -- the Authoritative Device per ADR-0002
   is_active BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -475,6 +488,51 @@ CREATE TABLE breaks (
 );
 ```
 
+> **Timestamp convention (ADR-0006):** All `DATETIME` columns above are interpreted as UTC. API payloads use ISO-8601 with the `Z` suffix; the frontend / mobile renders in device-local.
+
+#### notes
+```sql
+CREATE TABLE notes (
+  id VARCHAR(36) PRIMARY KEY,
+  session_id VARCHAR(36) NOT NULL UNIQUE, -- 1:1 with session
+  user_id VARCHAR(36) NOT NULL,
+  content TEXT,
+  topics TEXT,
+  difficulty_level INT,   -- 1..5
+  focus_level INT,        -- 1..5
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (session_id) REFERENCES study_sessions(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  INDEX idx_user (user_id)
+);
+```
+
+#### processed_actions (mobile sync idempotency — ADR-0004)
+```sql
+CREATE TABLE processed_actions (
+  user_id VARCHAR(36) NOT NULL,
+  client_uuid VARCHAR(36) NOT NULL,
+  action VARCHAR(64) NOT NULL,
+  processed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, client_uuid),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
+#### device_push_tokens (ADR-0007)
+```sql
+CREATE TABLE device_push_tokens (
+  user_id VARCHAR(36) NOT NULL,
+  device_id VARCHAR(36) NOT NULL,
+  platform ENUM('ios','android') NOT NULL,
+  token VARCHAR(512) NOT NULL,
+  last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, device_id),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+```
+
 ### Relationships
 - One User → Many Subjects
 - One User → Many Semesters
@@ -482,6 +540,9 @@ CREATE TABLE breaks (
 - One Subject → Many StudySessions
 - One Semester → Many StudySessions
 - One StudySession → Many Breaks
+- One StudySession → 0 or 1 Note
+- One User → 0 or 1 Authoritative Device (current_device_id) — ADR-0002
+- One (User, Device) → 0 or 1 Push Token — ADR-0007
 
 ---
 
@@ -558,14 +619,30 @@ GET    /analytics/time-blocks             - Average time blocks
 GET    /analytics/semester/:id            - Semester statistics
 GET    /analytics/trends                  - Study trends over time
 ```
+> Used by the (frozen) web app. Mobile computes analytics on-device from the local SQLite store; see ADR-0008.
+
+#### Notes
+```
+POST   /notes                             - Create note for a session
+GET    /notes/session/:sessionId          - Get the note for a session
+PUT    /notes/:id                         - Update a note
+DELETE /notes/:id                         - Delete a note
+```
+
+#### Mobile Sync (ADR-0004, ADR-0005)
+```
+POST   /sync/handshake                    - Return { currentDeviceId, lastServerCursor }
+POST   /sync                              - Batch upload of aggregate snapshots + receive new cursor
+```
+
+#### Devices / Push (ADR-0007)
+```
+POST   /devices/register-push-token       - Register FCM/APNs token for this device
+DELETE /devices/push-token                - Unregister
+```
 
 #### Export (PDF)
-```
-GET    /export/sessions/pdf               - Export sessions to PDF
-GET    /export/analytics/pdf              - Export analytics to PDF
-GET    /export/subject/:id/pdf            - Export subject report to PDF
-GET    /export/semester/:id/pdf           - Export semester report to PDF
-```
+> **Removed (ADR-0008).** PDF generation lives entirely on the mobile client via the `pdf` + `printing` packages. No backend `/export/*` endpoints are implemented.
 
 ### Request/Response Examples
 
@@ -651,6 +728,8 @@ GET    /export/semester/:id/pdf           - Export semester report to PDF
 
 ## Frontend Architecture
 
+> **Status: frozen** (ADR-0001). The React 19 + MUI web app is no longer the growing client. No new features land here; only critical bug fixes. The mobile app (see [Mobile Application](#mobile-application)) is the active product going forward. The web app stays online as a desktop fallback while a mobile device is the **Authoritative Device** but is read-only for **Study Sessions** in that mode.
+
 ### React Component Hierarchy
 
 ```
@@ -723,6 +802,43 @@ App
 - `useAnalytics()` - Fetch and cache analytics
 - `useBreak()` - Break tracking
 - `useExport()` - PDF export functionality
+
+---
+
+## Mobile Application
+
+> Decided in the 2026-05 grill-with-docs session. See ADRs 0001-0008 for the rationale behind each piece.
+
+### Goals
+- Native iOS + Android binaries on App Store and Play Store (ADR-0001).
+- Offline-first: the **Active Session** is fully usable without network; sync runs in the background (ADR-0002).
+- Single-device authority per account; new-device login gracefully demotes the old device (ADR-0002).
+- Timer survives app suspension and phone reboot via the wall-clock model (ADR-0003).
+
+### Tech stack
+- **Framework:** Flutter (Dart).
+- **Local DB:** Drift (type-safe SQL over SQLite). Mirrors the backend's `subjects`, `semesters`, `study_sessions`, `breaks`, `notes` tables, plus a local `sync_queue` table for pending mutations.
+- **State management:** Riverpod.
+- **HTTP:** dio (interceptors for auth refresh, retry, sync-queue draining).
+- **Secure storage:** flutter_secure_storage (refresh token in iOS Keychain / Android Keystore; access token in memory).
+- **Charts:** fl_chart.
+- **PDF:** `pdf` + `printing` (client-side rendering, native share sheet — ADR-0008).
+- **Connectivity:** connectivity_plus (drives the on-reconnect sync trigger).
+- **Foreground service (Android):** flutter_foreground_task.
+- **Local notifications:** flutter_local_notifications.
+- **Push:** firebase_messaging (FCM for Android, APNs via Firebase for iOS — ADR-0007).
+- **IDs:** `uuid` package — v4 client UUIDs are the idempotency key on every sync envelope row.
+
+### Sync engine
+- Triggers (Q10 in the grill session): on every local mutation while online (debounced 500 ms), on `connectivity_plus` offline→online transition, on `AppLifecycleState.resumed` / cold launch.
+- Envelope: aggregate snapshots of any **Study Session** with changes since `lastServerCursor`, with embedded **Breaks** and **Note** (ADR-0005). Subjects, semesters, and other entities sync via their own aggregate types in the same envelope.
+- Idempotency: every aggregate carries a `clientUuid`; the backend `processed_actions` table dedups.
+- Authoritative-device check: every `/sync` call carries a `device_id`. Non-matching devices receive `409 NOT_AUTHORITATIVE`; the mobile app then locks into the recovery screen (re-activate or export queued sessions — ADR-0002).
+
+### Timer model
+- The active session row in local SQLite stores `startTime`, optional `endTime`, `status`, plus a child collection of breaks with start/end timestamps. Elapsed is derived (`now - startTime - totalBreakSeconds`) on every render and on every cold launch — never persisted as a counter (ADR-0003).
+- Android: a foreground service runs while a session is `ACTIVE` / `PAUSED`, updating a persistent notification every ~10 s with the derived elapsed.
+- iOS: a static "Session in progress" local notification is posted on session start and cancelled on end.
 
 ---
 
@@ -953,18 +1069,14 @@ time-tracker/
 - **Testing:** Jest + Supertest
 - **API Documentation:** Swagger/OpenAPI
 
-### Frontend
-- **Framework:** React 18+
-- **Language:** TypeScript
-- **Build Tool:** Vite
-- **Routing:** React Router v6
-- **State Management:** Context API + useReducer (or Redux Toolkit)
-- **UI Library:** Material-UI or Tailwind CSS + Headless UI
-- **Charts:** Recharts or Chart.js (react-chartjs-2)
-- **HTTP Client:** Axios
-- **Date Handling:** date-fns or Day.js
-- **Form Handling:** React Hook Form
-- **Testing:** Vitest + React Testing Library
+### Frontend (frozen — ADR-0001)
+- **Framework:** React 19 + MUI 7 + Vite — currently in production at `frontend/`. No new features.
+- **Charts:** Recharts.
+- **HTTP Client:** Axios.
+- **Date Handling:** date-fns + `@mui/x-date-pickers`.
+
+### Mobile (active)
+See the [Mobile Application](#mobile-application) section for the full tech stack. Summary: Flutter, Drift, Riverpod, dio, fl_chart, `pdf`+`printing`, firebase_messaging, flutter_secure_storage.
 
 ### DevOps & Tools
 - **Version Control:** Git
@@ -1024,6 +1136,31 @@ time-tracker/
 3. E2E tests for critical user flows
 4. LocalHost deployment setup
 
+### Phase 7: Mobile Foundation (added 2026-05)
+1. Scaffold `mobile/` Flutter project alongside `backend/` and `frontend/`.
+2. Backend migrations: add `users.current_device_id`, `notes` (already exists), `processed_actions`, `device_push_tokens`.
+3. Implement `POST /sync/handshake`, `POST /sync` with idempotency + authoritative-device check.
+4. Implement `POST /devices/register-push-token`, `DELETE /devices/push-token`.
+5. Mobile auth: dio interceptor with silent sliding refresh, refresh token in flutter_secure_storage.
+
+### Phase 8: Mobile Core (offline-first)
+1. Drift schema for sessions/breaks/notes/subjects/semesters + local `sync_queue`.
+2. Wall-clock timer with Android foreground service + iOS local notification.
+3. Sync engine: three triggers (action / reconnect / foreground), 409 recovery screen.
+4. Subjects, semesters, sessions, breaks CRUD over local DB; remote is sync target only.
+
+### Phase 9: Mobile Polish
+1. fl_chart-based analytics screens, computed from local SQLite.
+2. Client-side PDF export via `pdf` + native share sheet.
+3. Push integration (FCM + APNs) — initially transactional only; social pushes once social features ship.
+4. Notifications settings screen.
+
+### Phase 10: Store Submission
+1. Apple Developer enrollment, App Store Connect setup.
+2. Google Play Developer Console setup, signing keys.
+3. Privacy disclosures, store listings, screenshots.
+4. Phased rollout.
+
 ---
 
 ## Next Steps
@@ -1055,7 +1192,8 @@ time-tracker/
 - Email notifications for break reminders
 - Export to CSV format
 - Social authentication (Google, GitHub)
-- Mobile responsive PWA
+- ~~Mobile responsive PWA~~ — superseded by native Flutter app (ADR-0001)
 - Pomodoro timer integration
 - Study goals and achievements
-- Team/Study group features
+- Social features (study with friends / shared sessions / leaderboards) — planned post mobile launch; the FCM/APNs infra in ADR-0007 is sized for this.
+- Multi-device sync — explicitly deferred (ADR-0002); revisit if social demand surfaces it.
