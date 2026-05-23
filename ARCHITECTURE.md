@@ -807,7 +807,7 @@ App
 
 ## Mobile Application
 
-> Decided in the 2026-05 grill-with-docs session. See ADRs 0001-0008 for the rationale behind each piece.
+> Decided in the 2026-05 grill-with-docs session and the 2026-05-23 scaffold pass. See ADRs 0001-0009 for the rationale behind each piece.
 
 ### Goals
 - Native iOS + Android binaries on App Store and Play Store (ADR-0001).
@@ -818,7 +818,9 @@ App
 ### Tech stack
 - **Framework:** Flutter (Dart).
 - **Local DB:** Drift (type-safe SQL over SQLite). Mirrors the backend's `subjects`, `semesters`, `study_sessions`, `breaks`, `notes` tables, plus a local `sync_queue` table for pending mutations.
-- **State management:** Riverpod.
+- **State management:** Cubit (`bloc` + `flutter_bloc`) — per ADR-0009, supersedes the original Riverpod pick. Each feature module owns a `*_cubit.dart` + `*_state.dart` (`part of` pattern) under `lib/src/presentation/modules/<feature>/service/`.
+- **Dependency injection:** `get_it` (ADR-0009). Single `sl` instance + `init()` in `lib/core/utils/injection_container.dart`; services and repositories registered as lazy singletons, cubits as factories.
+- **Routing:** `go_router` with `StatefulShellRoute.indexedStack` for the authenticated bottom-nav shell (ADR-0009).
 - **HTTP:** dio (interceptors for auth refresh, retry, sync-queue draining).
 - **Secure storage:** flutter_secure_storage (refresh token in iOS Keychain / Android Keystore; access token in memory).
 - **Charts:** fl_chart.
@@ -1046,6 +1048,29 @@ time-tracker/
 │   │       └── globals.css
 │   ├── package.json
 │   └── tsconfig.json
+├── mobile/                     # Flutter client (ADR-0001, ADR-0009)
+│   ├── lib/
+│   │   ├── main.dart           # DI init + MultiBlocProvider + MaterialApp.router
+│   │   ├── core/
+│   │   │   ├── api/            # APIResponse<T>, APIErrorResponse, http_messages
+│   │   │   ├── configs/        # themes.dart (design tokens + ThemeData)
+│   │   │   └── utils/          # constants, router, injection_container, core_utils, context_extension
+│   │   └── src/
+│   │       ├── domain/         # Pure interfaces + POJOs
+│   │       │   ├── models/
+│   │       │   ├── repositories/   # I*Repository
+│   │       │   └── services/       # IApiService, ITokenStorageService
+│   │       ├── data/           # Concrete adapters
+│   │       │   ├── repositories/   # AuthenticationRepository, ...
+│   │       │   └── services/       # DioApiService, TokenStorageService, AuthInterceptor
+│   │       └── presentation/
+│   │           ├── modules/
+│   │           │   ├── authentication/{screens,services}/
+│   │           │   └── study/<feature>/{screens,service,widgets}/
+│   │           └── widgets/    # Shared: DefaultButton, DefaultTextfield, MainAppBar
+│   ├── pubspec.yaml
+│   ├── ios/, android/          # Platform shells (only iOS + Android scaffolded)
+│   └── test/
 └── README.md
 ```
 
@@ -1076,7 +1101,7 @@ time-tracker/
 - **Date Handling:** date-fns + `@mui/x-date-pickers`.
 
 ### Mobile (active)
-See the [Mobile Application](#mobile-application) section for the full tech stack. Summary: Flutter, Drift, Riverpod, dio, fl_chart, `pdf`+`printing`, firebase_messaging, flutter_secure_storage.
+See the [Mobile Application](#mobile-application) section for the full tech stack. Summary: Flutter, Drift, Cubit (`bloc`/`flutter_bloc`), `get_it`, `go_router`, dio, fl_chart, `pdf`+`printing`, firebase_messaging, flutter_secure_storage.
 
 ### DevOps & Tools
 - **Version Control:** Git

@@ -4,9 +4,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Study Time Tracker — student-focused time tracking with subjects, semesters, sessions, breaks, analytics, and PDF export. Monorepo with two independent npm projects: `backend/` (Express + TypeORM + MySQL) and `frontend/` (React 19 + Vite + MUI). No root package.json — install and run commands inside each subdirectory.
+Study Time Tracker — student-focused time tracking with subjects, semesters, sessions, breaks, analytics, and PDF export. Monorepo with three subprojects:
 
-`ARCHITECTURE.md` at the repo root is the canonical design doc (domain model, DB schema, full API spec, component hierarchy). Consult it before designing new features or touching domain shapes.
+- `backend/` (Express + TypeORM + MySQL) — the only growing API surface.
+- `frontend/` (React 19 + Vite + MUI) — **frozen as of 2026-05-23** per ADR-0001. Critical bug fixes only.
+- `mobile/` (Flutter 3.41 + Dart 3.11) — the active client. Layered architecture per ADR-0009 (Cubit + get_it + go_router + `lib/core` / `lib/src` tree, mirroring the Activesystems `activework-flutter-client` reference).
+
+No root package.json — install and run commands inside each subdirectory.
+
+`ARCHITECTURE.md` at the repo root is the canonical design doc (domain model, DB schema, full API spec, component hierarchy). `CONTEXT.md` holds the project glossary. `docs/adr/` holds every locked architectural decision — consult ADRs before designing new features or touching domain shapes.
 
 ## Commands
 
@@ -52,6 +58,27 @@ Backend needs `backend/.env` (copy from `.env.example`). Required: `DB_*`, `JWT_
 Entry point `src/index.ts` initializes `AppDataSource`, mounts all routes under `/api/v1/{auth,semesters,subjects,sessions,analytics,notes}`, and exposes `/health`. Auth flow: JWT access + refresh tokens; all routes except `/auth/register` and `/auth/login` require `Authorization: Bearer <token>`.
 
 When adding a feature, the typical chain is: domain entity (+ repo interface) → TypeORM entity + repository → use case → controller → route. Do not import TypeORM/Express inside `domain/` or `application/`.
+
+### Mobile (`mobile/`)
+- `flutter pub get` — install dependencies (Flutter 3.41 / Dart 3.11).
+- `flutter analyze` — static analysis (no separate lint step).
+- `flutter test` — unit + widget tests.
+- `flutter run` — debug build on an attached device/simulator.
+- `flutter build apk` / `flutter build ipa` — release artifacts.
+- `flutter run --dart-define-from-file=.env` — read `mobile/.env` for build-time vars (`API_BASE_URL`, etc.). Copy `.env.example` to `.env` on first checkout; `.env` is gitignored. Without the flag, `lib/core/utils/constants.dart` falls back to `http://10.0.2.2:3000/api/v1` on Android and `http://localhost:3000/api/v1` elsewhere. One-off override: `flutter run --dart-define=API_BASE_URL=https://<ngrok-host>/api/v1`.
+
+### Mobile — layered Flutter app (ADR-0009)
+`mobile/lib/`:
+- `main.dart` — initializes `get_it` DI, sets up `MultiBlocProvider`, mounts `MaterialApp.router`.
+- `core/api/` — `APIResponse<T>` / `APIListResponse<T>` envelope, `APIErrorResponse`, `httpNoConnectionError`. The backend uses a flat `{success, message, data}` envelope — `DioApiService` parses that shape, **not** the reference's `{meta, data}` shape.
+- `core/configs/themes.dart` — design tokens (colours, radii) + Material `ThemeData`.
+- `core/utils/` — `constants.dart` (base URL + storage keys), `router.dart` (go_router with `StatefulShellRoute.indexedStack`), `injection_container.dart` (the single `sl` GetIt instance + `init()`), `core_utils.dart`, `context_extension.dart`.
+- `src/domain/` — pure interfaces (`I*Repository`, `IApiService`, `ITokenStorageService`) and POJO models. No Flutter / Dio / Drift imports here.
+- `src/data/` — concrete adapters: `DioApiService`, `TokenStorageService` (flutter_secure_storage), `AuthInterceptor`, repository implementations.
+- `src/presentation/modules/<feature>/` — each feature has `screens/`, `service/` (Cubit + state via `part of`), and `widgets/`. Shared widgets live in `src/presentation/widgets/`.
+- DI sections in `injection_container.dart` and provider/route lists are bracketed by `// MARK: <feature>-…-start` / `…-end` comments — keep that convention so future modules slot in mechanically.
+
+When adding a feature on mobile: domain interface + model → data implementation → register in `injection_container.dart` → presentation cubit + state + screens → route entry in `router.dart` → provider in `main.dart`.
 
 ### Frontend — feature-organized React SPA
 `frontend/src/`:
