@@ -1,4 +1,14 @@
+import 'package:flutter/foundation.dart';
+
 abstract class ITokenStorageService {
+  /// Loads any durable state (refresh token) so [isAuthenticated] is correct
+  /// before the first frame. Must be awaited in `main()` after DI registration.
+  Future<void> init();
+
+  /// Listenable flag — drives router redirects without per-navigation
+  /// secure-storage reads. `true` iff a refresh token is present.
+  ValueListenable<bool> get isAuthenticated;
+
   Future<void> saveAccessToken(String token);
   Future<String?> getAccessToken();
   Future<bool> hasAccessToken();

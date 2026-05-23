@@ -1,36 +1,55 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:study_time_tracker/src/domain/services/token_storage_service_intf.dart';
 
-const String _accessTokenKey = 'access_token';
 const String _refreshTokenKey = 'refresh_token';
-const String _expiresAtKey = 'expires_at';
+const String _securePrefix = 'secure_';
 
+/// Per ADR-0009 / ARCHITECTURE.md: the refresh token is durable and lives in
+/// the platform secure store; the access token and its expiry are short-lived
+/// and only held in memory, so a process restart forces a refresh via the
+/// stored refresh token.
 class TokenStorageService implements ITokenStorageService {
   TokenStorageService({FlutterSecureStorage? secureStorage})
       : _secureStorage = secureStorage ?? const FlutterSecureStorage();
 
-  static const String _securePrefix = 'secure_';
   final FlutterSecureStorage _secureStorage;
+  final ValueNotifier<bool> _isAuthenticated = ValueNotifier<bool>(false);
+
+  String? _accessToken;
+  DateTime? _expiresAt;
 
   @override
-  Future<void> saveAccessToken(String token) =>
-      _secureStorage.write(key: _accessTokenKey, value: token);
+  ValueListenable<bool> get isAuthenticated => _isAuthenticated;
 
   @override
-  Future<String?> getAccessToken() => _secureStorage.read(key: _accessTokenKey);
-
-  @override
-  Future<bool> hasAccessToken() async {
-    final token = await getAccessToken();
-    return token != null && token.isNotEmpty;
+  Future<void> init() async {
+    final refresh = await _secureStorage.read(key: _refreshTokenKey);
+    _isAuthenticated.value = refresh != null && refresh.isNotEmpty;
   }
 
   @override
-  Future<void> saveRefreshToken(String token) =>
-      _secureStorage.write(key: _refreshTokenKey, value: token);
+  Future<void> saveAccessToken(String token) async {
+    _accessToken = token;
+    if (!_isAuthenticated.value) _isAuthenticated.value = true;
+  }
 
   @override
-  Future<String?> getRefreshToken() => _secureStorage.read(key: _refreshTokenKey);
+  Future<String?> getAccessToken() async => _accessToken;
+
+  @override
+  Future<bool> hasAccessToken() async =>
+      _accessToken != null && _accessToken!.isNotEmpty;
+
+  @override
+  Future<void> saveRefreshToken(String token) async {
+    await _secureStorage.write(key: _refreshTokenKey, value: token);
+    if (!_isAuthenticated.value) _isAuthenticated.value = true;
+  }
+
+  @override
+  Future<String?> getRefreshToken() =>
+      _secureStorage.read(key: _refreshTokenKey);
 
   @override
   Future<bool> hasRefreshToken() async {
@@ -39,25 +58,19 @@ class TokenStorageService implements ITokenStorageService {
   }
 
   @override
-  Future<void> saveExpiresAt(DateTime expiresAt) => _secureStorage.write(
-        key: _expiresAtKey,
-        value: expiresAt.toIso8601String(),
-      );
+  Future<void> saveExpiresAt(DateTime expiresAt) async {
+    _expiresAt = expiresAt;
+  }
 
   @override
-  Future<DateTime?> getExpiresAt() async {
-    final value = await _secureStorage.read(key: _expiresAtKey);
-    if (value == null || value.isEmpty) return null;
-    return DateTime.tryParse(value);
-  }
+  Future<DateTime?> getExpiresAt() async => _expiresAt;
 
   @override
   Future<bool> isAccessTokenExpired({
     Duration buffer = const Duration(seconds: 30),
   }) async {
-    final expiresAt = await getExpiresAt();
-    if (expiresAt == null) return true;
-    return DateTime.now().isAfter(expiresAt.subtract(buffer));
+    if (_expiresAt == null) return true;
+    return DateTime.now().isAfter(_expiresAt!.subtract(buffer));
   }
 
   @override
@@ -75,16 +88,26 @@ class TokenStorageService implements ITokenStorageService {
   }
 
   @override
-  Future<void> clearAccessToken() => _secureStorage.delete(key: _accessTokenKey);
+  Future<void> clearAccessToken() async {
+    _accessToken = null;
+    _expiresAt = null;
+  }
 
   @override
-  Future<void> clearRefreshToken() =>
-      _secureStorage.delete(key: _refreshTokenKey);
+  Future<void> clearRefreshToken() async {
+    await _secureStorage.delete(key: _refreshTokenKey);
+    _isAuthenticated.value = false;
+  }
 
   @override
   Future<void> clearSecureValue(String key) =>
       _secureStorage.delete(key: '$_securePrefix$key');
 
   @override
-  Future<void> clearAll() => _secureStorage.deleteAll();
+  Future<void> clearAll() async {
+    _accessToken = null;
+    _expiresAt = null;
+    await _secureStorage.deleteAll();
+    _isAuthenticated.value = false;
+  }
 }

@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:get_it/get_it.dart';
+import 'package:study_time_tracker/core/utils/constants.dart';
 import 'package:study_time_tracker/src/data/repositories/authentication_repository.dart';
 import 'package:study_time_tracker/src/data/services/auth_interceptor.dart';
 import 'package:study_time_tracker/src/data/services/dio_api_service.dart';
@@ -13,16 +15,27 @@ final sl = GetIt.instance;
 
 Future<void> init() async {
   // Services
-  sl.registerLazySingleton<ITokenStorageService>(() => TokenStorageService());
-  sl.registerLazySingleton<AuthInterceptor>(
-    () => AuthInterceptor(
-      tokenStorageService: sl<ITokenStorageService>(),
-      authRepositoryFactory: () => sl<IAuthenticationRepository>(),
+  final tokenStorage = TokenStorageService();
+  await tokenStorage.init();
+  sl.registerSingleton<ITokenStorageService>(tokenStorage);
+
+  final dio = Dio(
+    BaseOptions(
+      baseUrl: kApiBaseUrl,
+      headers: kDefaultHeaders,
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
     ),
   );
-  sl.registerLazySingleton<IApiService>(
-    () => DioApiService(interceptors: [sl<AuthInterceptor>()]),
+  final authInterceptor = AuthInterceptor(
+    dio: dio,
+    tokenStorageService: tokenStorage,
+    authRepositoryFactory: () => sl<IAuthenticationRepository>(),
   );
+  dio.interceptors.add(authInterceptor);
+
+  sl.registerSingleton<AuthInterceptor>(authInterceptor);
+  sl.registerSingleton<IApiService>(DioApiService(dio: dio));
 
   // Repositories
   sl.registerLazySingleton<IAuthenticationRepository>(

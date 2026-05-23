@@ -105,8 +105,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         label: 'First name',
                         placeholder: 'Jane',
                         required: true,
-                        validator: (v) =>
-                            CoreUtils.validateRequired(v, field: 'First name'),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -116,8 +114,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         label: 'Last name',
                         placeholder: 'Doe',
                         required: true,
-                        validator: (v) =>
-                            CoreUtils.validateRequired(v, field: 'Last name'),
                       ),
                     ),
                   ],
@@ -129,7 +125,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   placeholder: 'you@example.com',
                   keyboardType: TextInputType.emailAddress,
                   required: true,
-                  validator: CoreUtils.validateEmail,
                 ),
                 const SizedBox(height: 16),
                 DefaultTextfield(
@@ -139,7 +134,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: true,
                   showPasswordToggle: true,
                   required: true,
-                  validator: _validatePassword,
                 ),
                 const SizedBox(height: 16),
                 DefaultTextfield(
@@ -149,7 +143,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   obscureText: true,
                   showPasswordToggle: true,
                   required: true,
-                  validator: _validateConfirm,
                 ),
                 const SizedBox(height: 24),
                 BlocBuilder<AuthenticationCubit, AuthenticationState>(

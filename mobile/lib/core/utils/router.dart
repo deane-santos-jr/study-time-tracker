@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_time_tracker/src/domain/services/token_storage_service_intf.dart';
@@ -7,12 +8,11 @@ import 'package:study_time_tracker/src/presentation/modules/study/dashboard/scre
 import 'package:study_time_tracker/src/presentation/modules/study/shell/screens/study_shell_screen.dart';
 
 GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
-      debugLogDiagnostics: true,
+      debugLogDiagnostics: kDebugMode,
       initialLocation: '/dashboard',
-      redirect: (context, state) async {
-        final hasToken = await tokenStorageService.hasAccessToken();
-        final isExpired = await tokenStorageService.isAccessTokenExpired();
-        final isAuthenticated = hasToken && !isExpired;
+      refreshListenable: _ValueListenableAdapter(tokenStorageService.isAuthenticated),
+      redirect: (context, state) {
+        final isAuthenticated = tokenStorageService.isAuthenticated.value;
         final isPublic = state.matchedLocation == '/login' ||
             state.matchedLocation == '/register';
 
@@ -83,6 +83,24 @@ CustomTransitionPage<void> _page(Widget child, LocalKey key) {
       child: child,
     ),
   );
+}
+
+/// Bridges `ValueListenable<bool>` (which exposes value changes) to the
+/// `Listenable` shape `GoRouter.refreshListenable` expects.
+class _ValueListenableAdapter extends ChangeNotifier {
+  _ValueListenableAdapter(this._source) {
+    _source.addListener(_forward);
+  }
+
+  final ValueListenable<bool> _source;
+
+  void _forward() => notifyListeners();
+
+  @override
+  void dispose() {
+    _source.removeListener(_forward);
+    super.dispose();
+  }
 }
 
 class _Placeholder extends StatelessWidget {

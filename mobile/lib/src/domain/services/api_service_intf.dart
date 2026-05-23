@@ -54,6 +54,14 @@ abstract class IApiService {
     required String path,
     required T Function(Map<String, dynamic>) fromJson,
     required String successMessage,
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? extraHeaders,
+  });
+
+  Future<APIListResponse<T>> postList<T>({
+    required String path,
+    required T Function(Map<String, dynamic>) fromJson,
+    required String successMessage,
     Object? body,
     Map<String, dynamic>? queryParameters,
     Map<String, dynamic>? extraHeaders,

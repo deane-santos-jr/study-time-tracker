@@ -6,15 +6,21 @@ import 'package:study_time_tracker/src/domain/services/token_storage_service_int
 
 class AuthInterceptor extends Interceptor {
   AuthInterceptor({
+    required Dio dio,
     required ITokenStorageService tokenStorageService,
     required IAuthenticationRepository Function() authRepositoryFactory,
-  })  : _tokenStorageService = tokenStorageService,
+  })  : _dio = dio,
+        _tokenStorageService = tokenStorageService,
         _authRepositoryFactory = authRepositoryFactory;
 
+  final Dio _dio;
   final ITokenStorageService _tokenStorageService;
   final IAuthenticationRepository Function() _authRepositoryFactory;
   bool _isRefreshing = false;
   Completer<void>? _refreshCompleter;
+
+  static const String _retryFlag = 'auth_retried';
+  static const String _refreshPath = '/auth/refresh';
 
   @override
   Future<void> onRequest(
@@ -23,7 +29,7 @@ class AuthInterceptor extends Interceptor {
   ) async {
     if (!options.headers.containsKey('Authorization')) {
       if (await _tokenStorageService.isAccessTokenExpired()) {
-        await _tryProactiveRefresh();
+        await _tryRefresh();
       }
       final token = await _tokenStorageService.getAccessToken();
       if (token != null && token.isNotEmpty) {
@@ -33,7 +39,38 @@ class AuthInterceptor extends Interceptor {
     return handler.next(options);
   }
 
-  Future<void> _tryProactiveRefresh() async {
+  @override
+  Future<void> onError(
+    DioException err,
+    ErrorInterceptorHandler handler,
+  ) async {
+    final status = err.response?.statusCode;
+    final path = err.requestOptions.path;
+    final alreadyRetried = err.requestOptions.extra[_retryFlag] == true;
+
+    if (status != 401 || alreadyRetried || path.contains(_refreshPath)) {
+      return handler.next(err);
+    }
+
+    try {
+      await _tryRefresh();
+      final token = await _tokenStorageService.getAccessToken();
+      if (token == null || token.isEmpty) {
+        return handler.next(err);
+      }
+
+      final retryOptions = err.requestOptions;
+      retryOptions.headers['Authorization'] = 'Bearer $token';
+      retryOptions.extra[_retryFlag] = true;
+
+      final response = await _dio.fetch<dynamic>(retryOptions);
+      return handler.resolve(response);
+    } catch (_) {
+      return handler.next(err);
+    }
+  }
+
+  Future<void> _tryRefresh() async {
     if (_isRefreshing) {
       _refreshCompleter ??= Completer<void>();
       await _refreshCompleter!.future;
@@ -44,7 +81,8 @@ class AuthInterceptor extends Interceptor {
     try {
       final refresh = await _tokenStorageService.getRefreshToken();
       if (refresh == null || refresh.isEmpty) return;
-      final res = await _authRepositoryFactory().refreshToken(refreshToken: refresh);
+      final res =
+          await _authRepositoryFactory().refreshToken(refreshToken: refresh);
       if (res.success && res.data != null) {
         await _tokenStorageService.saveAccessToken(res.data!.accessToken);
         await _tokenStorageService.saveRefreshToken(res.data!.refreshToken);
@@ -53,9 +91,10 @@ class AuthInterceptor extends Interceptor {
         await _tokenStorageService.clearAll();
       }
     } catch (_) {
-      // swallow — request will proceed and surface a 401 if needed
+      // swallow — caller will surface the resulting error if any
     } finally {
       _refreshCompleter?.complete();
+      _refreshCompleter = null;
       _isRefreshing = false;
     }
   }

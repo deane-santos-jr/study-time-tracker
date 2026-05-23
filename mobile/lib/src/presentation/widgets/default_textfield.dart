@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:study_time_tracker/core/configs/themes.dart';
 
+/// Visual-only text field. Validation lives in the calling screen — see
+/// `_handleLogin` / `_handleRegister` for the single validation path.
 class DefaultTextfield extends StatefulWidget {
   const DefaultTextfield({
     super.key,
@@ -11,7 +13,6 @@ class DefaultTextfield extends StatefulWidget {
     this.showPasswordToggle = false,
     this.keyboardType = TextInputType.text,
     this.required = false,
-    this.validator,
     this.onSubmitted,
   });
 
@@ -22,7 +23,6 @@ class DefaultTextfield extends StatefulWidget {
   final bool showPasswordToggle;
   final TextInputType keyboardType;
   final bool required;
-  final String? Function(String?)? validator;
   final ValueChanged<String>? onSubmitted;
 
   @override
@@ -32,7 +32,6 @@ class DefaultTextfield extends StatefulWidget {
 class _DefaultTextfieldState extends State<DefaultTextfield> {
   late TextEditingController _controller;
   bool _obscure = false;
-  String? _error;
 
   @override
   void initState() {
@@ -45,12 +44,6 @@ class _DefaultTextfieldState extends State<DefaultTextfield> {
   void dispose() {
     if (widget.controller == null) _controller.dispose();
     super.dispose();
-  }
-
-  void _submit(String value) {
-    final err = widget.validator?.call(value);
-    setState(() => _error = err);
-    if (err == null) widget.onSubmitted?.call(value);
   }
 
   @override
@@ -71,16 +64,13 @@ class _DefaultTextfieldState extends State<DefaultTextfield> {
         Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(kRadiusMd),
-            border: Border.all(
-              color: _error != null ? kErrorBase : kGray200,
-              width: 1,
-            ),
+            border: Border.all(color: kGray200, width: 1),
           ),
           child: TextField(
             controller: _controller,
             keyboardType: widget.keyboardType,
             obscureText: _obscure,
-            onSubmitted: _submit,
+            onSubmitted: widget.onSubmitted,
             decoration: InputDecoration(
               hintText: widget.placeholder,
               border: InputBorder.none,
@@ -99,11 +89,6 @@ class _DefaultTextfieldState extends State<DefaultTextfield> {
             ),
           ),
         ),
-        if (_error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(_error!, style: const TextStyle(color: kErrorBase, fontSize: 12)),
-          ),
       ],
     );
   }

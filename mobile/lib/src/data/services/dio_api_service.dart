@@ -145,22 +145,48 @@ class DioApiService implements IApiService {
     required String path,
     required T Function(Map<String, dynamic>) fromJson,
     required String successMessage,
+    Map<String, dynamic>? queryParameters,
+    Map<String, dynamic>? extraHeaders,
+  }) {
+    return _executeList(
+      () => _dio.get(
+        path,
+        queryParameters: queryParameters,
+        options: _optionsFrom(extraHeaders),
+      ),
+      fromJson,
+      successMessage,
+    );
+  }
+
+  @override
+  Future<APIListResponse<T>> postList<T>({
+    required String path,
+    required T Function(Map<String, dynamic>) fromJson,
+    required String successMessage,
     Object? body,
     Map<String, dynamic>? queryParameters,
     Map<String, dynamic>? extraHeaders,
-  }) async {
+  }) {
+    return _executeList(
+      () => _dio.post(
+        path,
+        data: body,
+        queryParameters: queryParameters,
+        options: _optionsFrom(extraHeaders),
+      ),
+      fromJson,
+      successMessage,
+    );
+  }
+
+  Future<APIListResponse<T>> _executeList<T>(
+    Future<Response> Function() request,
+    T Function(Map<String, dynamic>) fromJson,
+    String successMessage,
+  ) async {
     try {
-      final Response response;
-      if (body == null) {
-        response = await _dio.get(path,
-            queryParameters: queryParameters,
-            options: _optionsFrom(extraHeaders));
-      } else {
-        response = await _dio.post(path,
-            data: body,
-            queryParameters: queryParameters,
-            options: _optionsFrom(extraHeaders));
-      }
+      final response = await request();
       final envelope = response.data as Map<String, dynamic>;
       final data = (envelope['data'] as List<dynamic>? ?? const []);
       return APIListResponse(

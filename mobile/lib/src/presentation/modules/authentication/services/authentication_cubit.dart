@@ -65,14 +65,13 @@ class AuthenticationCubit extends Cubit<AuthenticationState> {
   }
 
   Future<void> logout() async {
+    emit(AuthenticationLoading());
+    // Logout is best-effort: ignore server errors so we always clear local
+    // state and finish in [LogoutSuccess] without flashing a Failure state.
     try {
-      emit(AuthenticationLoading());
       await authenticationRepository.logOut();
-    } catch (e) {
-      emit(AuthenticationFailure(errorMessage: CoreUtils.getErrorMessage(e)));
-    } finally {
-      await tokenStorageService.clearAll();
-      emit(const LogoutSuccess());
-    }
+    } catch (_) {}
+    await tokenStorageService.clearAll();
+    emit(const LogoutSuccess());
   }
 }

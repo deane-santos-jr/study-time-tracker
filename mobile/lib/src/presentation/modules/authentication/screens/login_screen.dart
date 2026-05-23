@@ -75,7 +75,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   placeholder: 'you@example.com',
                   keyboardType: TextInputType.emailAddress,
                   required: true,
-                  validator: CoreUtils.validateEmail,
                 ),
                 const SizedBox(height: 16),
                 DefaultTextfield(
@@ -85,8 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                   showPasswordToggle: true,
                   required: true,
-                  validator: (v) =>
-                      CoreUtils.validateRequired(v, field: 'Password'),
                 ),
                 const SizedBox(height: 24),
                 BlocBuilder<AuthenticationCubit, AuthenticationState>(
