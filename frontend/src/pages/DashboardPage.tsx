@@ -2,22 +2,17 @@ import { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
-  Grid,
   Card,
   CardContent,
   Box,
   Button,
   CircularProgress,
+  Divider,
 } from '@mui/material';
 import {
-  TodayOutlined as TodayIcon,
-  TrendingUpOutlined as TrendingIcon,
-  StarOutlined as StarIcon,
   ArrowForwardOutlined as ArrowIcon,
-  HistoryOutlined as HistoryIcon,
   AccessTimeOutlined as ClockIcon,
   CheckCircleOutline as CompleteIcon,
-  PlayCircleOutline as ActiveIcon,
 } from '@mui/icons-material';
 import { format, startOfToday, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
@@ -76,9 +71,7 @@ export const DashboardPage = () => {
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
-    if (hours > 0) {
-      return `${hours}h ${minutes}m`;
-    }
+    if (hours > 0) return `${hours}h ${minutes}m`;
     return `${minutes}m`;
   };
 
@@ -88,244 +81,194 @@ export const DashboardPage = () => {
       prev.totalTime > current.totalTime ? prev : current
     );
     const subject = subjects.find((s) => s.id === topSubject.subjectId);
-    return subject ? `${subject.icon} ${topSubject.subjectName}` : topSubject.subjectName;
+    return { name: topSubject.subjectName, icon: subject?.icon };
   };
 
   const weeklyAverage = weeklyStats ? Math.floor(weeklyStats.totalEffectiveTime / 7) : 0;
+  const topSubject = getMostStudiedSubject();
+
+  const stats = [
+    { label: 'Today', value: formatDuration(todayStats?.totalEffectiveTime || 0), color: '#8B5CF6' },
+    { label: 'Sessions today', value: String(todayStats?.totalSessions || 0), color: '#EC4899' },
+    { label: 'Daily avg (7d)', value: formatDuration(weeklyAverage), color: '#3B82F6' },
+  ];
 
   return (
     <MainLayout>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Typography variant="h4" gutterBottom fontWeight={600} mb={3}>
-          Dashboard
-        </Typography>
+        {/* Header */}
+        <Box sx={{ mb: 3 }}>
+          <Typography variant="h4" fontWeight={600} gutterBottom>
+            Dashboard
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {format(new Date(), 'EEEE, MMMM d, yyyy')}
+          </Typography>
+        </Box>
 
-        {/* Summary Statistics */}
-        <Grid container spacing={3} sx={{ mb: 4 }}>
-          <Grid item xs={12} sm={4}>
+        {/* Stats */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(3, 1fr)', md: topSubject ? 'repeat(4, 1fr)' : 'repeat(3, 1fr)' },
+            gap: 2.5,
+            mb: 4,
+          }}
+        >
+          {stats.map((stat) => (
             <Card
-              elevation={2}
-              sx={{
-                background: 'linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%)',
-                color: 'white',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 12px 24px rgba(139, 92, 246, 0.3)',
-                },
-              }}
+              key={stat.label}
+              variant="outlined"
+              sx={{ borderTop: `3px solid ${stat.color}` }}
             >
-              <CardContent>
-                <Box display="flex" alignItems="center" gap={2} mb={1}>
-                  <TodayIcon sx={{ fontSize: 40, opacity: 0.9 }} />
-                  <Box>
-                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                      Today's Study
-                    </Typography>
-                    <Typography variant="h4" fontWeight="bold">
-                      {loading ? (
-                        <CircularProgress size={24} sx={{ color: 'white' }} />
-                      ) : (
-                        formatDuration(todayStats?.totalEffectiveTime || 0)
-                      )}
-                    </Typography>
-                  </Box>
+              <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+                <Typography variant="caption" color="text.secondary" textTransform="uppercase" letterSpacing={0.5}>
+                  {stat.label}
+                </Typography>
+                <Typography variant="h4" fontWeight={700} sx={{ mt: 0.5, color: stat.color }}>
+                  {loading ? <CircularProgress size={24} /> : stat.value}
+                </Typography>
+              </CardContent>
+            </Card>
+          ))}
+
+          {/* Top subject card - slightly different treatment */}
+          {topSubject && (
+            <Card
+              variant="outlined"
+              sx={{ borderTop: '3px solid #F59E0B' }}
+            >
+              <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+                <Typography variant="caption" color="text.secondary" textTransform="uppercase" letterSpacing={0.5}>
+                  Top subject (7d)
+                </Typography>
+                <Box display="flex" alignItems="center" gap={1} sx={{ mt: 0.5 }}>
+                  <Typography fontSize="1.5rem" lineHeight={1}>{topSubject.icon}</Typography>
+                  <Typography variant="h5" fontWeight={700} noWrap sx={{ color: '#F59E0B' }}>
+                    {loading ? <CircularProgress size={24} /> : topSubject.name}
+                  </Typography>
                 </Box>
               </CardContent>
             </Card>
-          </Grid>
+          )}
+        </Box>
 
-          <Grid item xs={12} sm={4}>
-            <Card
-              elevation={2}
-              sx={{
-                background: 'linear-gradient(135deg, #A78BFA 0%, #8B5CF6 100%)',
-                color: 'white',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 12px 24px rgba(167, 139, 250, 0.3)',
-                },
-              }}
-            >
-              <CardContent>
-                <Box display="flex" alignItems="center" gap={2} mb={1}>
-                  <TrendingIcon sx={{ fontSize: 40, opacity: 0.9 }} />
-                  <Box>
-                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                      Weekly Average
-                    </Typography>
-                    <Typography variant="h4" fontWeight="bold">
-                      {loading ? (
-                        <CircularProgress size={24} sx={{ color: 'white' }} />
-                      ) : (
-                        `${formatDuration(weeklyAverage)} / day`
-                      )}
-                    </Typography>
-                  </Box>
+        {/* Timer + Recent Sessions */}
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '5fr 7fr' },
+            gap: 3,
+            alignItems: 'start',
+          }}
+        >
+          <Timer onSessionComplete={loadDashboardData} />
+
+          {/* Recent Sessions */}
+          <Card variant="outlined">
+            <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ px: 3, py: 2 }}>
+                <Typography variant="subtitle1" fontWeight={600}>
+                  Recent Sessions
+                </Typography>
+                <Button
+                  size="small"
+                  endIcon={<ArrowIcon />}
+                  onClick={() => navigate('/history')}
+                  sx={{ textTransform: 'none', fontWeight: 500 }}
+                >
+                  History
+                </Button>
+              </Box>
+
+              <Divider />
+
+              {recentSessions.length === 0 ? (
+                <Box sx={{ py: 8, textAlign: 'center' }}>
+                  <ClockIcon sx={{ fontSize: 36, color: 'text.disabled', mb: 1 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    No sessions yet. Start the timer to begin.
+                  </Typography>
                 </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-
-          <Grid item xs={12} sm={4}>
-            <Card
-              elevation={2}
-              sx={{
-                background: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
-                color: 'white',
-                transition: 'all 0.3s ease',
-                '&:hover': {
-                  transform: 'translateY(-4px)',
-                  boxShadow: '0 12px 24px rgba(236, 72, 153, 0.3)',
-                },
-              }}
-            >
-              <CardContent>
-                <Box display="flex" alignItems="center" gap={2} mb={1}>
-                  <StarIcon sx={{ fontSize: 40, opacity: 0.9 }} />
-                  <Box>
-                    <Typography variant="caption" sx={{ opacity: 0.9 }}>
-                      Most Studied
-                    </Typography>
-                    <Typography variant="h6" fontWeight="bold" noWrap>
-                      {loading ? (
-                        <CircularProgress size={24} sx={{ color: 'white' }} />
-                      ) : (
-                        getMostStudiedSubject() || 'No data yet'
-                      )}
-                    </Typography>
-                  </Box>
-                </Box>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
-
-        {/* Main Content: Timer and Recent Sessions */}
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={5}>
-            <Timer onSessionComplete={loadDashboardData} />
-          </Grid>
-
-          <Grid item xs={12} md={7}>
-            <Card elevation={3} sx={{ height: '100%' }}>
-              <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <HistoryIcon sx={{ fontSize: 28, color: 'primary.main' }} />
-                    <Typography variant="h5" fontWeight="600">
-                      Recent Sessions
-                    </Typography>
-                  </Box>
-                  <Button
-                    size="small"
-                    endIcon={<ArrowIcon />}
-                    onClick={() => navigate('/history')}
-                    sx={{ textTransform: 'none' }}
-                  >
-                    View All
-                  </Button>
-                </Box>
-
-                {recentSessions.length === 0 ? (
-                  <Box
-                    flex={1}
-                    display="flex"
-                    flexDirection="column"
-                    alignItems="center"
-                    justifyContent="center"
-                    sx={{ py: 8 }}
-                  >
-                    <Typography variant="h6" color="text.secondary" gutterBottom>
-                      No sessions yet
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" textAlign="center">
-                      Start tracking your study time!
-                    </Typography>
-                  </Box>
-                ) : (
-                  <Box sx={{ overflowY: 'auto', overflowX: 'hidden' }}>
-                    {recentSessions.map((session) => {
-                      const subject = getSubjectById(session.subjectId);
-                      return (
+              ) : (
+                recentSessions.map((session, idx) => {
+                  const subject = getSubjectById(session.subjectId);
+                  const isActive = !session.effectiveStudyTime;
+                  return (
+                    <Box key={session.id}>
+                      <Box
+                        onClick={() => navigate('/history')}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 2,
+                          px: 3,
+                          py: 1.5,
+                          cursor: 'pointer',
+                          transition: 'background 0.15s',
+                          '&:hover': { bgcolor: 'action.hover' },
+                        }}
+                      >
+                        {/* Subject icon */}
                         <Box
-                          key={session.id}
                           sx={{
-                            py: 2,
-                            px: 1.5,
+                            width: 38,
+                            height: 38,
                             borderRadius: 1.5,
-                            borderLeft: `4px solid ${subject?.color || '#8B5CF6'}`,
-                            backgroundColor: `${subject?.color || '#8B5CF6'}08`,
-                            transition: 'all 0.2s ease',
-                            mb: 1.5,
-                            '&:hover': {
-                              bgcolor: `${subject?.color || '#8B5CF6'}15`,
-                              cursor: 'pointer',
-                              transform: 'translateX(4px)',
-                            },
-                            '&:last-child': { mb: 0 },
+                            bgcolor: `${subject?.color || '#8B5CF6'}15`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.15rem',
+                            flexShrink: 0,
                           }}
                         >
-                          <Box display="flex" alignItems="center" gap={2}>
-                            {subject && (
-                              <Box
-                                sx={{
-                                  width: 44,
-                                  height: 44,
-                                  borderRadius: '50%',
-                                  backgroundColor: `${subject.color}30`,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '1.4rem',
-                                  flexShrink: 0,
-                                  border: `2px solid ${subject.color}`,
-                                }}
-                              >
-                                {subject.icon}
-                              </Box>
-                            )}
-                            <Box flex={1} minWidth={0}>
-                              <Box display="flex" justifyContent="space-between" alignItems="center" gap={2} mb={0.5}>
-                                <Box display="flex" alignItems="center" gap={1} flex={1} minWidth={0}>
-                                  {session.effectiveStudyTime ? (
-                                    <CompleteIcon sx={{ fontSize: 18, color: 'success.main' }} />
-                                  ) : (
-                                    <ActiveIcon sx={{ fontSize: 18, color: 'info.main' }} />
-                                  )}
-                                  <Typography variant="body1" fontWeight="500" noWrap>
-                                    {subject?.name || 'Unknown Subject'}
-                                  </Typography>
-                                </Box>
-                                <Box display="flex" alignItems="center" gap={0.5} sx={{ flexShrink: 0 }}>
-                                  <ClockIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                                  <Typography
-                                    variant="body1"
-                                    fontWeight="bold"
-                                    color="primary.main"
-                                  >
-                                    {session.effectiveStudyTime
-                                      ? formatDuration(session.effectiveStudyTime)
-                                      : 'Active'}
-                                  </Typography>
-                                </Box>
-                              </Box>
-                              <Typography variant="caption" color="text.secondary">
-                                {format(new Date(session.startTime), 'MMM dd, yyyy')} at{' '}
-                                {format(new Date(session.startTime), 'hh:mm a')}
+                          {subject?.icon || '📚'}
+                        </Box>
+
+                        {/* Subject + timestamp */}
+                        <Box flex={1} minWidth={0}>
+                          <Typography variant="body2" fontWeight={500} noWrap>
+                            {subject?.name || 'Unknown'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {format(new Date(session.startTime), 'MMM d, h:mm a')}
+                          </Typography>
+                        </Box>
+
+                        {/* Duration */}
+                        <Box sx={{ flexShrink: 0, textAlign: 'right' }}>
+                          {isActive ? (
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                              <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'success.main', animation: 'pulse 1.5s infinite',
+                                '@keyframes pulse': {
+                                  '0%': { opacity: 1 },
+                                  '50%': { opacity: 0.4 },
+                                  '100%': { opacity: 1 },
+                                },
+                              }} />
+                              <Typography variant="body2" fontWeight={600} color="success.main">
+                                Active
                               </Typography>
                             </Box>
-                          </Box>
+                          ) : (
+                            <Box display="flex" alignItems="center" gap={0.5}>
+                              <CompleteIcon sx={{ fontSize: 14, color: subject?.color || 'text.disabled' }} />
+                              <Typography variant="body2" fontWeight={600} sx={{ color: subject?.color || 'text.primary' }}>
+                                {formatDuration(session.effectiveStudyTime)}
+                              </Typography>
+                            </Box>
+                          )}
                         </Box>
-                      );
-                    })}
-                  </Box>
-                )}
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+                      </Box>
+                      {idx < recentSessions.length - 1 && <Divider />}
+                    </Box>
+                  );
+                })
+              )}
+            </CardContent>
+          </Card>
+        </Box>
       </Container>
     </MainLayout>
   );

@@ -4,10 +4,8 @@ import {
   Box,
   Typography,
   Button,
-  Grid,
   Card,
   CardContent,
-  CardActions,
   IconButton,
   Dialog,
   DialogTitle,
@@ -17,6 +15,9 @@ import {
   Alert,
   CircularProgress,
   Chip,
+  Tooltip,
+  LinearProgress,
+  Switch,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
@@ -25,14 +26,44 @@ import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  CalendarToday as CalendarIcon,
-  Schedule as ScheduleIcon,
-  CheckCircle as ActiveIcon,
-  RadioButtonUnchecked as InactiveIcon,
+  CalendarMonth as CalendarIcon,
 } from '@mui/icons-material';
 import { semesterService } from '../services/semesterService';
 import type { Semester, CreateSemesterData } from '../types';
 import { MainLayout } from '../components/layout/MainLayout';
+
+const getStatusInfo = (startDate: Date, endDate: Date, isActive: boolean) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(0, 0, 0, 0);
+
+  const totalDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const daysElapsed = Math.ceil((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+  const daysRemaining = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const progress = Math.min(Math.max((daysElapsed / totalDays) * 100, 0), 100);
+
+  const isOngoing = today >= start && today <= end;
+  const isPast = today > end;
+  const isFuture = today < start;
+
+  let color = '#6B7280';
+  let label = 'Ended';
+  if (isOngoing && isActive) {
+    color = '#8B5CF6';
+    label = 'Ongoing';
+  } else if (isOngoing && !isActive) {
+    color = '#6B7280';
+    label = 'Paused';
+  } else if (isFuture) {
+    color = '#3B82F6';
+    label = 'Upcoming';
+  }
+
+  return { totalDays, daysElapsed, daysRemaining, progress, isOngoing, isPast, isFuture, color, label };
+};
 
 export const SemestersPage = () => {
   const [semesters, setSemesters] = useState<Semester[]>([]);
@@ -73,11 +104,7 @@ export const SemestersPage = () => {
       });
     } else {
       setEditingSemester(null);
-      setFormData({
-        name: '',
-        startDate: '',
-        endDate: '',
-      });
+      setFormData({ name: '', startDate: '', endDate: '' });
     }
     setOpenDialog(true);
   };
@@ -121,25 +148,37 @@ export const SemestersPage = () => {
     }
   };
 
+  const formatDate = (dateStr: string) =>
+    new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
-        <CircularProgress />
-      </Box>
+      <MainLayout>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+          <CircularProgress size={48} />
+        </Box>
+      </MainLayout>
     );
   }
 
   return (
     <MainLayout>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-          <Typography variant="h4" component="h1">
-            My Semesters
-          </Typography>
+        {/* Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+          <Box>
+            <Typography variant="h4" fontWeight={600} gutterBottom>
+              Semesters
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {semesters.length} semester{semesters.length !== 1 ? 's' : ''} total
+            </Typography>
+          </Box>
           <Button
             variant="contained"
             startIcon={<AddIcon />}
             onClick={() => handleOpenDialog()}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 3 }}
           >
             Add Semester
           </Button>
@@ -151,220 +190,176 @@ export const SemestersPage = () => {
           </Alert>
         )}
 
-        <Grid container spacing={3}>
-          {semesters.map((semester) => {
-            const startDate = new Date(semester.startDate);
-            const endDate = new Date(semester.endDate);
-            const today = new Date();
-            const totalDays = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-            const daysElapsed = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-            const daysRemaining = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-            const progress = Math.min(Math.max((daysElapsed / totalDays) * 100, 0), 100);
-            const isOngoing = today >= startDate && today <= endDate;
-            const isPast = today > endDate;
-            const isFuture = today < startDate;
+        {semesters.length === 0 ? (
+          <Box textAlign="center" py={10}>
+            <CalendarIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No semesters yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Create your first semester to organize your subjects
+            </Typography>
+            <Button variant="outlined" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+              Create Semester
+            </Button>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: '1fr 1fr' },
+              gap: 2.5,
+            }}
+          >
+            {semesters.map((semester) => {
+              const startDate = new Date(semester.startDate);
+              const endDate = new Date(semester.endDate);
+              const status = getStatusInfo(startDate, endDate, semester.isActive);
 
-            return (
-              <Grid item xs={12} sm={6} md={6} key={semester.id}>
+              return (
                 <Card
+                  key={semester.id}
+                  variant="outlined"
                   sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    border: semester.isActive ? '2px solid' : '1px solid',
-                    borderColor: semester.isActive ? 'primary.main' : 'divider',
-                    transition: 'all 0.3s ease',
+                    borderLeft: `4px solid ${status.color}`,
+                    transition: 'all 0.2s ease',
+                    opacity: status.isPast ? 0.75 : 1,
                     '&:hover': {
-                      boxShadow: 6,
-                      transform: 'translateY(-4px)',
+                      borderColor: status.color,
+                      boxShadow: `0 4px 20px ${status.color}15`,
+                      transform: 'translateY(-2px)',
+                      opacity: 1,
                     },
                   }}
                 >
-                  <CardContent sx={{ flexGrow: 1, pb: 1 }}>
-                    <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                      <Box flex={1}>
-                        <Typography variant="h6" component="div" fontWeight={600} gutterBottom>
-                          {semester.name}
-                        </Typography>
-                        <Box display="flex" alignItems="center" gap={0.5} mb={1}>
-                          {semester.isActive ? (
-                            <ActiveIcon sx={{ fontSize: 16, color: 'success.main' }} />
-                          ) : (
-                            <InactiveIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                          )}
+                  <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+                    {/* Row 1: Name + Status + Actions */}
+                    <Box display="flex" alignItems="center" gap={1.5} mb={2}>
+                      <Box flex={1} minWidth={0}>
+                        <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
+                          <Typography variant="subtitle1" fontWeight={600} noWrap title={semester.name}>
+                            {semester.name}
+                          </Typography>
                           <Chip
-                            label={semester.isActive ? 'Active' : 'Inactive'}
-                            color={semester.isActive ? 'success' : 'default'}
+                            label={status.label}
                             size="small"
-                            onClick={() => handleToggleActive(semester)}
-                            sx={{ cursor: 'pointer', height: 20, fontSize: '0.7rem' }}
-                          />
-                          {isOngoing && (
-                            <Chip
-                              label="Ongoing"
-                              color="info"
-                              size="small"
-                              sx={{ height: 20, fontSize: '0.7rem', ml: 0.5 }}
-                            />
-                          )}
-                          {isPast && (
-                            <Chip
-                              label="Ended"
-                              size="small"
-                              sx={{ height: 20, fontSize: '0.7rem', ml: 0.5, bgcolor: 'grey.300' }}
-                            />
-                          )}
-                          {isFuture && (
-                            <Chip
-                              label="Upcoming"
-                              color="warning"
-                              size="small"
-                              sx={{ height: 20, fontSize: '0.7rem', ml: 0.5 }}
-                            />
-                          )}
-                        </Box>
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 2 }}>
-                      <Box display="flex" alignItems="center" gap={1} mb={1}>
-                        <CalendarIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                        <Typography variant="body2" color="text.secondary">
-                          <strong>Start:</strong> {startDate.toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </Typography>
-                      </Box>
-                      <Box display="flex" alignItems="center" gap={1} mb={1}>
-                        <ScheduleIcon sx={{ fontSize: 18, color: 'error.main' }} />
-                        <Typography variant="body2" color="text.secondary">
-                          <strong>End:</strong> {endDate.toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                            year: 'numeric'
-                          })}
-                        </Typography>
-                      </Box>
-                    </Box>
-
-                    {isOngoing && (
-                      <Box sx={{ mb: 1 }}>
-                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={0.5}>
-                          <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                            Progress
-                          </Typography>
-                          <Typography variant="caption" color="primary.main" fontWeight={600}>
-                            {daysRemaining > 0 ? `${daysRemaining} days left` : 'Last day'}
-                          </Typography>
-                        </Box>
-                        <Box
-                          sx={{
-                            width: '100%',
-                            height: 6,
-                            bgcolor: 'grey.200',
-                            borderRadius: 1,
-                            overflow: 'hidden',
-                          }}
-                        >
-                          <Box
                             sx={{
-                              width: `${progress}%`,
-                              height: '100%',
-                              bgcolor: 'primary.main',
-                              transition: 'width 0.3s ease',
+                              bgcolor: `${status.color}15`,
+                              color: status.color,
+                              fontWeight: 600,
+                              fontSize: '0.75rem',
+                              height: 24,
                             }}
                           />
                         </Box>
                       </Box>
-                    )}
 
-                    {isFuture && (
-                      <Box
-                        sx={{
-                          mt: 1,
-                          p: 1,
-                          bgcolor: 'warning.50',
-                          borderRadius: 1,
-                          border: '1px solid',
-                          borderColor: 'warning.200',
-                        }}
-                      >
-                        <Typography variant="caption" color="warning.dark" fontWeight={500}>
-                          Starts in {Math.abs(daysElapsed)} days
-                        </Typography>
+                      {/* Active toggle + actions */}
+                      <Box display="flex" alignItems="center" gap={0.5} flexShrink={0}>
+                        <Tooltip title={semester.isActive ? 'Deactivate' : 'Activate'}>
+                          <Switch
+                            size="small"
+                            checked={semester.isActive}
+                            onChange={() => handleToggleActive(semester)}
+                            color="primary"
+                          />
+                        </Tooltip>
+                        <Tooltip title="Edit">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenDialog(semester)}
+                            sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDelete(semester.id)}
+                            sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </Box>
+
+                    {/* Row 2: Date range */}
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                      sx={{
+                        p: 1.5,
+                        borderRadius: 1.5,
+                        bgcolor: 'grey.50',
+                        mb: status.isOngoing ? 2 : 0,
+                      }}
+                    >
+                      <CalendarIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                      <Typography variant="body2" color="text.secondary">
+                        {formatDate(semester.startDate)}
+                      </Typography>
+                      <Typography variant="body2" color="text.disabled">
+                        —
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatDate(semester.endDate)}
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled" sx={{ ml: 'auto' }}>
+                        {status.totalDays} days
+                      </Typography>
+                    </Box>
+
+                    {/* Row 3: Progress bar (ongoing only) */}
+                    {status.isOngoing && (
+                      <Box>
+                        <Box display="flex" justifyContent="space-between" mb={0.5}>
+                          <Typography variant="caption" color="text.secondary">
+                            {Math.round(status.progress)}% complete
+                          </Typography>
+                          <Typography variant="caption" fontWeight={600} sx={{ color: status.color }}>
+                            {status.daysRemaining > 0 ? `${status.daysRemaining} days left` : 'Last day'}
+                          </Typography>
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={status.progress}
+                          sx={{
+                            height: 6,
+                            borderRadius: 3,
+                            bgcolor: `${status.color}15`,
+                            '& .MuiLinearProgress-bar': {
+                              borderRadius: 3,
+                              bgcolor: status.color,
+                            },
+                          }}
+                        />
                       </Box>
                     )}
 
-                    {isPast && (
-                      <Box
-                        sx={{
-                          mt: 1,
-                          p: 1,
-                          bgcolor: 'grey.100',
-                          borderRadius: 1,
-                        }}
-                      >
-                        <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                          Ended {Math.abs(daysRemaining)} days ago
-                        </Typography>
-                      </Box>
+                    {/* Row 3 alt: Future/Past info */}
+                    {status.isFuture && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1.5, display: 'block' }}>
+                        Starts in {Math.abs(status.daysElapsed)} days
+                      </Typography>
                     )}
-
-                    <Typography variant="caption" color="text.disabled" sx={{ display: 'block', mt: 1.5 }}>
-                      Created {new Date(semester.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric'
-                      })}
-                    </Typography>
+                    {status.isPast && (
+                      <Typography variant="caption" color="text.disabled" sx={{ mt: 1.5, display: 'block' }}>
+                        Ended {Math.abs(status.daysRemaining)} days ago
+                      </Typography>
+                    )}
                   </CardContent>
-                  <CardActions sx={{ justifyContent: 'flex-end', pt: 0, px: 2, pb: 2 }}>
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      onClick={() => handleOpenDialog(semester)}
-                      sx={{
-                        '&:hover': {
-                          bgcolor: 'primary.50',
-                        }
-                      }}
-                    >
-                      <EditIcon fontSize="small" />
-                    </IconButton>
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={() => handleDelete(semester.id)}
-                      sx={{
-                        '&:hover': {
-                          bgcolor: 'error.50',
-                        }
-                      }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </CardActions>
                 </Card>
-              </Grid>
-            );
-          })}
-        </Grid>
-
-        {semesters.length === 0 && (
-          <Box textAlign="center" mt={8}>
-            <Typography variant="h6" color="text.secondary" gutterBottom>
-              No semesters yet
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Create your first semester to organize your subjects
-            </Typography>
+              );
+            })}
           </Box>
         )}
 
+        {/* Add/Edit Dialog */}
         <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-          <DialogTitle>
+          <DialogTitle sx={{ fontWeight: 600 }}>
             {editingSemester ? 'Edit Semester' : 'Add New Semester'}
           </DialogTitle>
           <DialogContent>
@@ -379,7 +374,7 @@ export const SemestersPage = () => {
             />
 
             <LocalizationProvider dateAdapter={AdapterDateFns}>
-              <Box sx={{ mt: 2, mb: 1 }}>
+              <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                 <DatePicker
                   label="Start Date"
                   value={formData.startDate ? new Date(formData.startDate) : null}
@@ -391,16 +386,8 @@ export const SemestersPage = () => {
                     }
                   }}
                   format="MM/dd/yyyy"
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      required: true,
-                    },
-                  }}
+                  slotProps={{ textField: { fullWidth: true, required: true } }}
                 />
-              </Box>
-
-              <Box sx={{ mt: 2 }}>
                 <DatePicker
                   label="End Date"
                   value={formData.endDate ? new Date(formData.endDate) : null}
@@ -412,22 +399,20 @@ export const SemestersPage = () => {
                     }
                   }}
                   format="MM/dd/yyyy"
-                  slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      required: true,
-                    },
-                  }}
+                  slotProps={{ textField: { fullWidth: true, required: true } }}
                 />
               </Box>
             </LocalizationProvider>
           </DialogContent>
-          <DialogActions>
-            <Button onClick={handleCloseDialog}>Cancel</Button>
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={handleCloseDialog} sx={{ textTransform: 'none' }}>
+              Cancel
+            </Button>
             <Button
               onClick={handleSubmit}
               variant="contained"
               disabled={!formData.name.trim() || !formData.startDate || !formData.endDate}
+              sx={{ textTransform: 'none', fontWeight: 600, px: 3 }}
             >
               {editingSemester ? 'Update' : 'Create'}
             </Button>

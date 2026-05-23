@@ -4,10 +4,8 @@ import {
   Box,
   Typography,
   Button,
-  Grid,
   Card,
   CardContent,
-  CardActions,
   IconButton,
   Dialog,
   DialogTitle,
@@ -20,25 +18,31 @@ import {
   Select,
   FormControl,
   InputLabel,
+  Chip,
+  Tooltip,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
-  CalendarMonth as CalendarIcon,
   CheckCircle as ActiveIcon,
 } from '@mui/icons-material';
 import { subjectService } from '../services/subjectService';
 import { semesterService } from '../services/semesterService';
 import type { Subject, CreateSubjectData, Semester } from '../types';
+import { MainLayout } from '../components/layout/MainLayout';
 
 const PRESET_COLORS = [
-  '#FF5733', '#33FF57', '#3357FF', '#FF33F5', '#F5FF33',
-  '#33FFF5', '#FF8C33', '#8C33FF', '#33FF8C', '#FF3333',
-  '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3',
-  '#00BCD4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39',
-  '#FFEB3B', '#FFC107', '#FF9800', '#FF5722', '#795548',
-  '#607D8B', '#F06292', '#BA68C8', '#9575CD', '#7986CB',
+  '#8B5CF6', '#7C3AED', '#6D28D9',
+  '#EC4899', '#DB2777', '#BE185D',
+  '#3B82F6', '#2563EB', '#1D4ED8',
+  '#10B981', '#059669', '#047857',
+  '#F59E0B', '#D97706', '#B45309',
+  '#EF4444', '#DC2626', '#B91C1C',
+  '#06B6D4', '#0891B2', '#0E7490',
+  '#8B5CF6', '#F97316', '#14B8A6',
+  '#6366F1', '#A855F7', '#D946EF',
+  '#78716C', '#57534E', '#44403C',
 ];
 
 const PRESET_ICONS = [
@@ -48,8 +52,6 @@ const PRESET_ICONS = [
   '⭐', '🌟', '💫', '🎯', '🎪', '🎭', '🎬', '📷', '🎸', '🎹',
   '🏃', '⚡', '🔥', '💪', '🧠', '❤️', '🌈', '☀️', '🌙', '⏰',
 ];
-
-import { MainLayout } from '../components/layout/MainLayout';
 
 export const SubjectsPage = () => {
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -86,7 +88,7 @@ export const SubjectsPage = () => {
   const loadSemesters = async () => {
     try {
       const data = await semesterService.getAll();
-      setSemesters(data.filter(s => s.isActive));
+      setSemesters(data.filter((s) => s.isActive));
     } catch (err: any) {
       console.error('Failed to load semesters:', err);
     }
@@ -99,7 +101,7 @@ export const SubjectsPage = () => {
         name: subject.name,
         color: subject.color,
         icon: subject.icon,
-        semesterId: '', 
+        semesterId: '',
       });
     } else {
       setEditingSubject(null);
@@ -145,277 +147,309 @@ export const SubjectsPage = () => {
 
   if (loading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
-        <CircularProgress />
-      </Box>
+      <MainLayout>
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+          <CircularProgress size={48} />
+        </Box>
+      </MainLayout>
     );
   }
 
   return (
     <MainLayout>
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" component="h1">
-          My Subjects
-        </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => handleOpenDialog()}
-        >
-          Add Subject
-        </Button>
-      </Box>
+        {/* Header */}
+        <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={3}>
+          <Box>
+            <Typography variant="h4" fontWeight={600} gutterBottom>
+              Subjects
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {subjects.length} subject{subjects.length !== 1 ? 's' : ''} total
+            </Typography>
+          </Box>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => handleOpenDialog()}
+            sx={{ textTransform: 'none', fontWeight: 600, borderRadius: 2, px: 3 }}
+          >
+            Add Subject
+          </Button>
+        </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
-          {error}
-        </Alert>
-      )}
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+            {error}
+          </Alert>
+        )}
 
-      <Grid container spacing={3}>
-        {subjects.map((subject) => (
-          <Grid item xs={12} sm={6} md={4} key={subject.id}>
-            <Card
-              sx={{
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                position: 'relative',
-                overflow: 'hidden',
-                transition: 'all 0.3s ease',
-                border: '1px solid',
-                borderColor: 'divider',
-                '&:hover': {
-                  boxShadow: 6,
-                  transform: 'translateY(-4px)',
-                  borderColor: subject.color,
-                },
-              }}
-            >
-              {/* Color accent bar */}
-              <Box
+        {/* Subject Cards */}
+        {subjects.length === 0 ? (
+          <Box textAlign="center" py={10}>
+            <Typography variant="h6" color="text.secondary" gutterBottom>
+              No subjects yet
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Create your first subject to start tracking your study time
+            </Typography>
+            <Button variant="outlined" startIcon={<AddIcon />} onClick={() => handleOpenDialog()}>
+              Create Subject
+            </Button>
+          </Box>
+        ) : (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr', md: 'repeat(3, 1fr)' },
+              gap: 2.5,
+            }}
+          >
+            {subjects.map((subject) => (
+              <Card
+                key={subject.id}
+                variant="outlined"
                 sx={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: 4,
-                  bgcolor: subject.color,
-                  borderTopLeftRadius: 16,
-                  borderTopRightRadius: 16,
+                  borderLeft: `4px solid ${subject.color}`,
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    borderColor: subject.color,
+                    boxShadow: `0 4px 20px ${subject.color}20`,
+                    transform: 'translateY(-2px)',
+                  },
                 }}
-              />
-
-              <CardContent sx={{ flexGrow: 1, pt: 3 }}>
-                <Box display="flex" alignItems="flex-start" gap={2} mb={2}>
-                  <Box
-                    sx={{
-                      width: 56,
-                      height: 56,
-                      borderRadius: 2,
-                      background: `linear-gradient(135deg, ${subject.color}15 0%, ${subject.color}30 100%)`,
-                      border: '2px solid',
-                      borderColor: subject.color,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '2rem',
-                      flexShrink: 0,
-                      transition: 'transform 0.3s ease',
-                      '&:hover': {
-                        transform: 'scale(1.1) rotate(5deg)',
-                      },
-                    }}
-                  >
-                    {subject.icon}
-                  </Box>
-                  <Box flex={1}>
-                    <Typography
-                      variant="h6"
-                      component="div"
-                      fontWeight={600}
-                      gutterBottom
+              >
+                <CardContent sx={{ p: 2.5, '&:last-child': { pb: 2.5 } }}>
+                  {/* Top row: icon + name + actions */}
+                  <Box display="flex" alignItems="center" gap={2}>
+                    {/* Icon */}
+                    <Box
                       sx={{
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        display: '-webkit-box',
-                        WebkitLineClamp: 2,
-                        WebkitBoxOrient: 'vertical',
-                        lineHeight: 1.3,
+                        width: 48,
+                        height: 48,
+                        borderRadius: 2,
+                        bgcolor: `${subject.color}15`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.6rem',
+                        flexShrink: 0,
                       }}
                     >
-                      {subject.name}
-                    </Typography>
-                    {subject.isActive && (
-                      <Box display="flex" alignItems="center" gap={0.5}>
-                        <ActiveIcon sx={{ fontSize: 14, color: 'success.main' }} />
-                        <Typography variant="caption" color="success.main" fontWeight={600}>
-                          Active
-                        </Typography>
-                      </Box>
-                    )}
+                      {subject.icon}
+                    </Box>
+
+                    {/* Name + status */}
+                    <Box flex={1} minWidth={0}>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight={600}
+                        noWrap
+                        title={subject.name}
+                      >
+                        {subject.name}
+                      </Typography>
+                      {subject.isActive && (
+                        <Box display="flex" alignItems="center" gap={0.5}>
+                          <ActiveIcon sx={{ fontSize: 13, color: 'success.main' }} />
+                          <Typography variant="caption" color="success.main" fontWeight={500}>
+                            Active
+                          </Typography>
+                        </Box>
+                      )}
+                    </Box>
+
+                    {/* Actions */}
+                    <Box sx={{ display: 'flex', gap: 0.5, flexShrink: 0 }}>
+                      <Tooltip title="Edit">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenDialog(subject)}
+                          sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDelete(subject.id)}
+                          sx={{ color: 'text.secondary', '&:hover': { color: 'error.main' } }}
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
                   </Box>
-                </Box>
 
-                {/* Created date with icon */}
-                <Box display="flex" alignItems="center" gap={0.5} mt={2}>
-                  <CalendarIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-                  <Typography variant="caption" color="text.disabled">
-                    Created {new Date(subject.createdAt).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                    })}
-                  </Typography>
-                </Box>
-              </CardContent>
-
-              <CardActions
-                sx={{
-                  justifyContent: 'flex-end',
-                  px: 2,
-                  py: 1.5,
-                  bgcolor: 'grey.50',
-                  borderTop: '1px solid',
-                  borderColor: 'divider',
-                }}
-              >
-                <IconButton
-                  size="small"
-                  color="primary"
-                  onClick={() => handleOpenDialog(subject)}
-                  sx={{
-                    '&:hover': {
-                      bgcolor: 'primary.50',
-                    }
-                  }}
-                >
-                  <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  color="error"
-                  onClick={() => handleDelete(subject.id)}
-                  sx={{
-                    '&:hover': {
-                      bgcolor: 'error.50',
-                    }
-                  }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
-              </CardActions>
-            </Card>
-          </Grid>
-        ))}
-      </Grid>
-
-      {subjects.length === 0 && (
-        <Box textAlign="center" mt={8}>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            No subjects yet
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Create your first subject to start tracking your study time
-          </Typography>
-        </Box>
-      )}
-
-      {/* Add/Edit Dialog */}
-      <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>
-          {editingSubject ? 'Edit Subject' : 'Add New Subject'}
-        </DialogTitle>
-        <DialogContent>
-          {!editingSubject && (
-            <FormControl fullWidth margin="normal" required>
-              <InputLabel>Semester</InputLabel>
-              <Select
-                value={formData.semesterId}
-                label="Semester"
-                onChange={(e) => setFormData({ ...formData, semesterId: e.target.value })}
-              >
-                {semesters.map((semester) => (
-                  <MenuItem key={semester.id} value={semester.id}>
-                    {semester.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
-
-          <TextField
-            fullWidth
-            label="Subject Name"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            margin="normal"
-            required
-          />
-
-          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
-            Select Color
-          </Typography>
-          <Box display="flex" gap={1} flexWrap="wrap">
-            {PRESET_COLORS.map((color) => (
-              <Box
-                key={color}
-                onClick={() => setFormData({ ...formData, color })}
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: '50%',
-                  backgroundColor: color,
-                  cursor: 'pointer',
-                  border: formData.color === color ? '3px solid #000' : '2px solid #ddd',
-                  '&:hover': {
-                    transform: 'scale(1.1)',
-                  },
-                }}
-              />
+                  {/* Color indicator + date */}
+                  <Box display="flex" alignItems="center" justifyContent="space-between" mt={1.5}>
+                    <Box
+                      sx={{
+                        width: 20,
+                        height: 20,
+                        borderRadius: '50%',
+                        bgcolor: subject.color,
+                        border: '2px solid white',
+                        boxShadow: `0 0 0 1px ${subject.color}40`,
+                      }}
+                    />
+                    <Typography variant="caption" color="text.disabled">
+                      {new Date(subject.createdAt).toLocaleDateString('en-US', {
+                        month: 'short',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </Card>
             ))}
           </Box>
+        )}
 
-          <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
-            Select Icon
-          </Typography>
-          <Box display="flex" gap={1} flexWrap="wrap">
-            {PRESET_ICONS.map((icon) => (
+        {/* Add/Edit Dialog */}
+        <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+          <DialogTitle sx={{ fontWeight: 600 }}>
+            {editingSubject ? 'Edit Subject' : 'Add New Subject'}
+          </DialogTitle>
+          <DialogContent>
+            {!editingSubject && (
+              <FormControl fullWidth margin="normal" required>
+                <InputLabel>Semester</InputLabel>
+                <Select
+                  value={formData.semesterId}
+                  label="Semester"
+                  onChange={(e) => setFormData({ ...formData, semesterId: e.target.value })}
+                >
+                  {semesters.map((semester) => (
+                    <MenuItem key={semester.id} value={semester.id}>
+                      {semester.name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
+
+            <TextField
+              fullWidth
+              label="Subject Name"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              margin="normal"
+              required
+            />
+
+            {/* Preview */}
+            {formData.name && (
               <Box
-                key={icon}
-                onClick={() => setFormData({ ...formData, icon })}
                 sx={{
-                  width: 40,
-                  height: 40,
+                  mt: 2,
+                  p: 2,
+                  borderRadius: 2,
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  borderLeft: `4px solid ${formData.color}`,
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.5rem',
-                  cursor: 'pointer',
-                  border: formData.icon === icon ? '2px solid #1976d2' : '2px solid #ddd',
-                  borderRadius: 1,
-                  '&:hover': {
-                    backgroundColor: '#f5f5f5',
-                  },
+                  gap: 2,
+                  bgcolor: `${formData.color}08`,
                 }}
               >
-                {icon}
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 1.5,
+                    bgcolor: `${formData.color}15`,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.4rem',
+                  }}
+                >
+                  {formData.icon}
+                </Box>
+                <Typography variant="subtitle2" fontWeight={600}>
+                  {formData.name}
+                </Typography>
               </Box>
-            ))}
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button
-            onClick={handleSubmit}
-            variant="contained"
-            disabled={!formData.name.trim() || (!editingSubject && !formData.semesterId)}
-          >
-            {editingSubject ? 'Update' : 'Create'}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            )}
+
+            {/* Color Picker */}
+            <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }} color="text.secondary">
+              Color
+            </Typography>
+            <Box display="flex" gap={0.75} flexWrap="wrap">
+              {PRESET_COLORS.map((color) => (
+                <Box
+                  key={color}
+                  onClick={() => setFormData({ ...formData, color })}
+                  sx={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: '50%',
+                    bgcolor: color,
+                    cursor: 'pointer',
+                    border: formData.color === color ? '3px solid' : '2px solid transparent',
+                    borderColor: formData.color === color ? 'text.primary' : 'transparent',
+                    outline: formData.color === color ? `2px solid ${color}` : 'none',
+                    outlineOffset: 2,
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      transform: 'scale(1.15)',
+                    },
+                  }}
+                />
+              ))}
+            </Box>
+
+            {/* Icon Picker */}
+            <Typography variant="subtitle2" sx={{ mt: 3, mb: 1 }} color="text.secondary">
+              Icon
+            </Typography>
+            <Box display="flex" gap={0.5} flexWrap="wrap">
+              {PRESET_ICONS.map((icon) => (
+                <Box
+                  key={icon}
+                  onClick={() => setFormData({ ...formData, icon })}
+                  sx={{
+                    width: 36,
+                    height: 36,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.3rem',
+                    cursor: 'pointer',
+                    borderRadius: 1.5,
+                    border: '2px solid',
+                    borderColor: formData.icon === icon ? 'primary.main' : 'transparent',
+                    bgcolor: formData.icon === icon ? 'primary.50' : 'transparent',
+                    transition: 'all 0.15s ease',
+                    '&:hover': {
+                      bgcolor: 'action.hover',
+                    },
+                  }}
+                >
+                  {icon}
+                </Box>
+              ))}
+            </Box>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, py: 2 }}>
+            <Button onClick={handleCloseDialog} sx={{ textTransform: 'none' }}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              variant="contained"
+              disabled={!formData.name.trim() || (!editingSubject && !formData.semesterId)}
+              sx={{ textTransform: 'none', fontWeight: 600, px: 3 }}
+            >
+              {editingSubject ? 'Update' : 'Create'}
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Container>
     </MainLayout>
   );

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Container,
@@ -10,6 +10,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TablePagination,
   FormControl,
   InputLabel,
   Select,
@@ -19,30 +20,46 @@ import {
   IconButton,
   Tooltip,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-  Alert,
-  TextField,
-  Rating,
 } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { FilterList, Refresh, Delete as DeleteIcon, NoteAdd as NoteAddIcon, Note as NoteIcon } from '@mui/icons-material';
+import { FilterList, Refresh, Delete as DeleteIcon, Note as NoteIcon, Edit as EditIcon } from '@mui/icons-material';
 import { format } from 'date-fns';
 import { MainLayout } from '../components/layout/MainLayout';
 import { sessionService } from '../services/sessionService';
 import { subjectService } from '../services/subjectService';
-import { noteService } from '../services/noteService';
-import type { StudySession, Subject, Note } from '../types';
+import { DeleteSessionDialog } from '../components/history/DeleteSessionDialog';
+import { EditSessionDialog } from '../components/history/EditSessionDialog';
+import { NoteSessionDialog } from '../components/history/NoteSessionDialog';
+import type { StudySession, Subject } from '../types';
+
+const formatDuration = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hours > 0) return `${hours}h ${minutes}m ${secs}s`;
+  if (minutes > 0) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+};
+
+const formatDateTime = (dateString: string): string => {
+  try {
+    return format(new Date(dateString), 'MMM dd, yyyy hh:mm a');
+  } catch {
+    return 'Invalid date';
+  }
+};
+
+const STATUS_COLORS: Record<string, 'default' | 'primary' | 'success' | 'warning'> = {
+  COMPLETED: 'success',
+  ACTIVE: 'primary',
+  PAUSED: 'warning',
+};
 
 const HistoryPage: React.FC = () => {
   const [sessions, setSessions] = useState<StudySession[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [filteredSessions, setFilteredSessions] = useState<StudySession[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Filter states
@@ -50,26 +67,16 @@ const HistoryPage: React.FC = () => {
   const [startDate, setStartDate] = useState<string>('');
   const [endDate, setEndDate] = useState<string>('');
 
-  // Delete modal states
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string>('');
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
-  // Note dialog states
-  const [noteDialogOpen, setNoteDialogOpen] = useState(false);
-  const [selectedSession, setSelectedSession] = useState<StudySession | null>(null);
-  const [currentNote, setCurrentNote] = useState<Note | null>(null);
-  const [noteLoading, setNoteLoading] = useState(false);
+  // Dialog states — only store the minimal identifier/object needed
+  const [deleteSessionId, setDeleteSessionId] = useState<string | null>(null);
+  const [editSession, setEditSession] = useState<StudySession | null>(null);
+  const [noteSession, setNoteSession] = useState<StudySession | null>(null);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  useEffect(() => {
-    applyFilters();
-  }, [sessions, selectedSubject, startDate, endDate]);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [sessionsData, subjectsData] = await Promise.all([
@@ -83,220 +90,75 @@ const HistoryPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const applyFilters = () => {
-    let filtered = [...sessions];
-
-    // Filter by subject
-    if (selectedSubject !== 'all') {
-      filtered = filtered.filter(session => session.subjectId === selectedSubject);
-    }
-
-    // Filter by start date
-    if (startDate) {
-      filtered = filtered.filter(session =>
-        new Date(session.startTime) >= new Date(startDate)
-      );
-    }
-
-    // Filter by end date
-    if (endDate) {
-      const endDateTime = new Date(endDate);
-      endDateTime.setHours(23, 59, 59, 999);
-      filtered = filtered.filter(session =>
-        new Date(session.startTime) <= endDateTime
-      );
-    }
-
-    // Sort by start time (newest first)
-    filtered.sort((a, b) =>
-      new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
-    );
-
-    setFilteredSessions(filtered);
-  };
-
-  const getSubjectName = (subjectId: string): string => {
-    const subject = subjects.find(s => s.id === subjectId);
-    return subject?.name || 'Unknown';
-  };
-
-  const getSubjectColor = (subjectId: string): string => {
-    const subject = subjects.find(s => s.id === subjectId);
-    return subject?.color || '#9e9e9e';
-  };
-
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
-
-    if (hours > 0) {
-      return `${hours}h ${minutes}m ${secs}s`;
-    } else if (minutes > 0) {
-      return `${minutes}m ${secs}s`;
-    } else {
-      return `${secs}s`;
-    }
-  };
-
-  const formatDateTime = (dateString: string): string => {
-    try {
-      return format(new Date(dateString), 'MMM dd, yyyy hh:mm a');
-    } catch {
-      return 'Invalid date';
-    }
-  };
-
-  const getStatusColor = (status: string): 'default' | 'primary' | 'success' | 'warning' => {
-    switch (status) {
-      case 'COMPLETED':
-        return 'success';
-      case 'ACTIVE':
-        return 'primary';
-      case 'PAUSED':
-        return 'warning';
-      default:
-        return 'default';
-    }
-  };
-
-  const handleRefresh = () => {
+  useEffect(() => {
     loadData();
-  };
+  }, [loadData]);
 
-  const handleClearFilters = () => {
+  // O(1) subject lookups instead of .find() per row
+  const subjectMap = useMemo(() => {
+    const map = new Map<string, Subject>();
+    for (const s of subjects) map.set(s.id, s);
+    return map;
+  }, [subjects]);
+
+  // Memoized filtering + sorting — no extra useEffect/setState cycle
+  const filteredSessions = useMemo(() => {
+    let filtered = sessions;
+
+    if (selectedSubject !== 'all') {
+      filtered = filtered.filter((s) => s.subjectId === selectedSubject);
+    }
+
+    if (startDate) {
+      const start = new Date(startDate).getTime();
+      filtered = filtered.filter((s) => new Date(s.startTime).getTime() >= start);
+    }
+
+    if (endDate) {
+      const end = new Date(endDate);
+      end.setHours(23, 59, 59, 999);
+      const endMs = end.getTime();
+      filtered = filtered.filter((s) => new Date(s.startTime).getTime() <= endMs);
+    }
+
+    return filtered.slice().sort(
+      (a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()
+    );
+  }, [sessions, selectedSubject, startDate, endDate]);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setPage(0);
+  }, [selectedSubject, startDate, endDate]);
+
+  // Current page slice
+  const paginatedSessions = useMemo(
+    () => filteredSessions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
+    [filteredSessions, page, rowsPerPage]
+  );
+
+  const handleClearFilters = useCallback(() => {
     setSelectedSubject('all');
     setStartDate('');
     setEndDate('');
-  };
+  }, []);
 
-  const handleDeleteClick = (sessionId: string) => {
-    setSessionToDelete(sessionId);
-    setDeleteDialogOpen(true);
-    setDeleteError('');
-  };
+  const handleDeleted = useCallback(() => {
+    setDeleteSessionId(null);
+    loadData();
+  }, [loadData]);
 
-  const handleDeleteCancel = () => {
-    setDeleteDialogOpen(false);
-    setSessionToDelete(null);
-    setDeleteError('');
-  };
+  const handleEditSaved = useCallback(() => {
+    setEditSession(null);
+    loadData();
+  }, [loadData]);
 
-  const handleDeleteConfirm = async () => {
-    if (!sessionToDelete) return;
-
-    try {
-      await sessionService.delete(sessionToDelete);
-      setDeleteDialogOpen(false);
-      setSessionToDelete(null);
-      setDeleteError('');
-      await loadData();
-    } catch (error) {
-      console.error('Failed to delete session:', error);
-      setDeleteError('Failed to delete session. Please try again.');
-    }
-  };
-
-  const handleNoteClick = async (session: StudySession) => {
-    setSelectedSession(session);
-    setNoteLoading(true);
-    setNoteDialogOpen(true);
-
-    try {
-      const note = await noteService.getBySession(session.id);
-      setCurrentNote(note);
-    } catch (error) {
-      console.error('Failed to load note:', error);
-      setCurrentNote(null);
-    } finally {
-      setNoteLoading(false);
-    }
-  };
-
-  const handleNoteClose = () => {
-    setNoteDialogOpen(false);
-    setSelectedSession(null);
-    setCurrentNote(null);
-  };
-
-  const [noteContent, setNoteContent] = useState('');
-  const [noteTopics, setNoteTopics] = useState('');
-  const [noteDifficulty, setNoteDifficulty] = useState<number | null>(null);
-  const [noteFocus, setNoteFocus] = useState<number | null>(null);
-  const [noteError, setNoteError] = useState('');
-  const [noteSaving, setNoteSaving] = useState(false);
-
-  useEffect(() => {
-    if (currentNote) {
-      setNoteContent(currentNote.content || '');
-      setNoteTopics(currentNote.topics || '');
-      setNoteDifficulty(currentNote.difficultyLevel || null);
-      setNoteFocus(currentNote.focusLevel || null);
-    } else {
-      setNoteContent('');
-      setNoteTopics('');
-      setNoteDifficulty(null);
-      setNoteFocus(null);
-    }
-    setNoteError('');
-  }, [currentNote]);
-
-  const handleNoteSave = async () => {
-    if (!selectedSession) return;
-
-    if (!noteContent.trim()) {
-      setNoteError('Note content is required');
-      return;
-    }
-
-    try {
-      setNoteSaving(true);
-      setNoteError('');
-
-      if (currentNote) {
-        // Update existing note
-        await noteService.update(currentNote.id, {
-          content: noteContent,
-          topics: noteTopics || undefined,
-          difficultyLevel: noteDifficulty || undefined,
-          focusLevel: noteFocus || undefined,
-        });
-      } else {
-        // Create new note
-        await noteService.create({
-          sessionId: selectedSession.id,
-          content: noteContent,
-          topics: noteTopics || undefined,
-          difficultyLevel: noteDifficulty || undefined,
-          focusLevel: noteFocus || undefined,
-        });
-      }
-
-      handleNoteClose();
-    } catch (error: any) {
-      console.error('Failed to save note:', error);
-      setNoteError(error.response?.data?.message || 'Failed to save note. Please try again.');
-    } finally {
-      setNoteSaving(false);
-    }
-  };
-
-  const handleNoteDelete = async () => {
-    if (!currentNote) return;
-
-    try {
-      setNoteSaving(true);
-      await noteService.delete(currentNote.id);
-      handleNoteClose();
-    } catch (error) {
-      console.error('Failed to delete note:', error);
-      setNoteError('Failed to delete note. Please try again.');
-    } finally {
-      setNoteSaving(false);
-    }
-  };
+  const noteSubjectName = useMemo(
+    () => (noteSession ? subjectMap.get(noteSession.subjectId)?.name || 'Unknown' : ''),
+    [noteSession, subjectMap]
+  );
 
   return (
     <MainLayout>
@@ -360,10 +222,7 @@ const HistoryPage: React.FC = () => {
                   }}
                   format="MM/dd/yyyy"
                   slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      size: 'small',
-                    },
+                    textField: { fullWidth: true, size: 'small' },
                   }}
                 />
               </Grid>
@@ -381,10 +240,7 @@ const HistoryPage: React.FC = () => {
                   }}
                   format="MM/dd/yyyy"
                   slotProps={{
-                    textField: {
-                      fullWidth: true,
-                      size: 'small',
-                    },
+                    textField: { fullWidth: true, size: 'small' },
                   }}
                 />
               </Grid>
@@ -397,7 +253,7 @@ const HistoryPage: React.FC = () => {
                     </IconButton>
                   </Tooltip>
                   <Tooltip title="Refresh">
-                    <IconButton onClick={handleRefresh} color="primary">
+                    <IconButton onClick={loadData} color="primary">
                       <Refresh />
                     </IconButton>
                   </Tooltip>
@@ -426,249 +282,163 @@ const HistoryPage: React.FC = () => {
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               {sessions.length === 0
                 ? "Start a study session to see it here!"
-                : "Try adjusting your filters"}
+                : 'Try adjusting your filters'}
             </Typography>
           </Paper>
         ) : (
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell><strong>Subject</strong></TableCell>
-                  <TableCell><strong>Start Time</strong></TableCell>
-                  <TableCell><strong>Status</strong></TableCell>
-                  <TableCell align="right"><strong>Total Duration</strong></TableCell>
-                  <TableCell align="right"><strong>Effective Time</strong></TableCell>
-                  <TableCell align="right"><strong>Break Time</strong></TableCell>
-                  <TableCell align="center"><strong>Breaks</strong></TableCell>
-                  <TableCell align="center"><strong>Actions</strong></TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {filteredSessions.map((session) => (
-                  <TableRow
-                    key={session.id}
-                    sx={{ '&:hover': { bgcolor: 'action.hover' } }}
-                  >
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box
-                          sx={{
-                            width: 16,
-                            height: 16,
-                            borderRadius: '50%',
-                            bgcolor: getSubjectColor(session.subjectId),
-                            flexShrink: 0,
-                          }}
-                        />
-                        <Typography variant="body2" fontWeight={500}>
-                          {getSubjectName(session.subjectId)}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="body2">
-                        {formatDateTime(session.startTime)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={session.status}
-                        color={getStatusColor(session.status)}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" fontWeight={500}>
-                        {formatDuration(session.totalDuration || 0)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" color="success.main">
-                        {formatDuration(session.effectiveStudyTime || 0)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="right">
-                      <Typography variant="body2" color="warning.main">
-                        {formatDuration((session.totalDuration || 0) - (session.effectiveStudyTime || 0) - (session.accumulatedPauseTime || 0))}
-                      </Typography>
-                    </TableCell>
-                    <TableCell align="center">
-                      <Chip
-                        label={session.breakCount || 0}
-                        size="small"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell align="center">
-                      <Tooltip title="View/Add Note">
-                        <IconButton
-                          size="small"
-                          color="primary"
-                          onClick={() => handleNoteClick(session)}
-                        >
-                          <NoteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Delete Session">
-                        <IconButton
-                          size="small"
-                          color="error"
-                          onClick={() => handleDeleteClick(session.id)}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
+          <Paper>
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell><strong>Subject</strong></TableCell>
+                    <TableCell><strong>Start Time</strong></TableCell>
+                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell align="right"><strong>Total Duration</strong></TableCell>
+                    <TableCell align="right"><strong>Effective Time</strong></TableCell>
+                    <TableCell align="right"><strong>Break Time</strong></TableCell>
+                    <TableCell align="center"><strong>Breaks</strong></TableCell>
+                    <TableCell align="center"><strong>Actions</strong></TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {paginatedSessions.map((session) => {
+                    const subject = subjectMap.get(session.subjectId);
+                    const breakTime =
+                      (session.totalDuration || 0) -
+                      (session.effectiveStudyTime || 0) -
+                      (session.accumulatedPauseTime || 0);
+
+                    return (
+                      <TableRow
+                        key={session.id}
+                        sx={{ '&:hover': { bgcolor: 'action.hover' } }}
+                      >
+                        <TableCell>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Box
+                              sx={{
+                                width: 16,
+                                height: 16,
+                                borderRadius: '50%',
+                                bgcolor: subject?.color || '#9e9e9e',
+                                flexShrink: 0,
+                              }}
+                            />
+                            <Typography variant="body2" fontWeight={500}>
+                              {subject?.name || 'Unknown'}
+                            </Typography>
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          <Typography variant="body2">
+                            {formatDateTime(session.startTime)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={session.status}
+                            color={STATUS_COLORS[session.status] || 'default'}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" fontWeight={500}>
+                            {formatDuration(session.totalDuration || 0)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" color="success.main">
+                            {formatDuration(session.effectiveStudyTime || 0)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" color="warning.main">
+                            {formatDuration(breakTime)}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="center">
+                          <Chip
+                            label={session.breakCount || 0}
+                            size="small"
+                            variant="outlined"
+                          />
+                        </TableCell>
+                        <TableCell align="center">
+                          <Tooltip title="View/Add Note">
+                            <IconButton
+                              size="small"
+                              color="primary"
+                              onClick={() => setNoteSession(session)}
+                            >
+                              <NoteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Edit Session">
+                            <IconButton
+                              size="small"
+                              color="info"
+                              onClick={() => setEditSession(session)}
+                            >
+                              <EditIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Delete Session">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => setDeleteSessionId(session.id)}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            <TablePagination
+              component="div"
+              count={filteredSessions.length}
+              page={page}
+              onPageChange={(_, newPage) => setPage(newPage)}
+              rowsPerPage={rowsPerPage}
+              onRowsPerPageChange={(e) => {
+                setRowsPerPage(parseInt(e.target.value, 10));
+                setPage(0);
+              }}
+              rowsPerPageOptions={[10, 25, 50]}
+            />
+          </Paper>
         )}
 
-        {/* Delete Confirmation Dialog */}
-        <Dialog
-          open={deleteDialogOpen}
-          onClose={handleDeleteCancel}
-          maxWidth="sm"
-          fullWidth
-        >
-          <DialogTitle>Delete Session</DialogTitle>
-          <DialogContent>
-            {deleteError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {deleteError}
-              </Alert>
-            )}
-            <Typography>
-              Are you sure you want to delete this session? This action cannot be undone.
-            </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleDeleteCancel} color="inherit">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDeleteConfirm}
-              color="error"
-              variant="contained"
-              autoFocus
-            >
-              Delete
-            </Button>
-          </DialogActions>
-        </Dialog>
+        {/* Dialogs — only mounted when needed */}
+        {deleteSessionId && (
+          <DeleteSessionDialog
+            sessionId={deleteSessionId}
+            onClose={() => setDeleteSessionId(null)}
+            onDeleted={handleDeleted}
+          />
+        )}
 
-        {/* Note Dialog */}
-        <Dialog
-          open={noteDialogOpen}
-          onClose={handleNoteClose}
-          maxWidth="md"
-          fullWidth
-        >
-          <DialogTitle>
-            {currentNote ? 'Edit Session Note' : 'Add Session Note'}
-          </DialogTitle>
-          <DialogContent>
-            {noteLoading ? (
-              <Box display="flex" justifyContent="center" py={4}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <>
-                {noteError && (
-                  <Alert severity="error" sx={{ mb: 2 }}>
-                    {noteError}
-                  </Alert>
-                )}
+        {editSession && (
+          <EditSessionDialog
+            session={editSession}
+            subjects={subjects}
+            onClose={() => setEditSession(null)}
+            onSaved={handleEditSaved}
+          />
+        )}
 
-                {selectedSession && (
-                  <Box sx={{ mb: 2 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Session: {getSubjectName(selectedSession.subjectId)} • {format(new Date(selectedSession.startTime), 'MMM dd, yyyy hh:mm a')}
-                    </Typography>
-                  </Box>
-                )}
-
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={4}
-                  label="Note Content *"
-                  value={noteContent}
-                  onChange={(e) => setNoteContent(e.target.value)}
-                  placeholder="What did you study? Key takeaways, reflections, or important points..."
-                  sx={{ mb: 2 }}
-                />
-
-                <TextField
-                  fullWidth
-                  label="Topics Covered"
-                  value={noteTopics}
-                  onChange={(e) => setNoteTopics(e.target.value)}
-                  placeholder="e.g., Linear Algebra, Calculus, React Hooks"
-                  helperText="Separate multiple topics with commas"
-                  sx={{ mb: 2 }}
-                />
-
-                <Grid container spacing={2}>
-                  <Grid item xs={12} sm={6}>
-                    <Typography component="legend" variant="body2" gutterBottom>
-                      Difficulty Level
-                    </Typography>
-                    <Rating
-                      name="difficulty-rating"
-                      value={noteDifficulty}
-                      onChange={(_, newValue) => setNoteDifficulty(newValue)}
-                      max={5}
-                    />
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      How challenging was this session?
-                    </Typography>
-                  </Grid>
-
-                  <Grid item xs={12} sm={6}>
-                    <Typography component="legend" variant="body2" gutterBottom>
-                      Focus Level
-                    </Typography>
-                    <Rating
-                      name="focus-rating"
-                      value={noteFocus}
-                      onChange={(_, newValue) => setNoteFocus(newValue)}
-                      max={5}
-                    />
-                    <Typography variant="caption" color="text.secondary" display="block">
-                      How focused were you?
-                    </Typography>
-                  </Grid>
-                </Grid>
-              </>
-            )}
-          </DialogContent>
-          <DialogActions>
-            {currentNote && (
-              <Button
-                onClick={handleNoteDelete}
-                color="error"
-                disabled={noteSaving}
-              >
-                Delete Note
-              </Button>
-            )}
-            <Box sx={{ flex: 1 }} />
-            <Button onClick={handleNoteClose} disabled={noteSaving}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleNoteSave}
-              variant="contained"
-              disabled={noteSaving || noteLoading}
-            >
-              {noteSaving ? 'Saving...' : currentNote ? 'Update' : 'Save'}
-            </Button>
-          </DialogActions>
-        </Dialog>
+        {noteSession && (
+          <NoteSessionDialog
+            session={noteSession}
+            subjectName={noteSubjectName}
+            onClose={() => setNoteSession(null)}
+          />
+        )}
       </Container>
     </MainLayout>
   );

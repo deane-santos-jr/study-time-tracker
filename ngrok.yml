@@ -1,0 +1,11 @@
+version: "2"
+authtoken: 349aRv2ydY4MBClZJfGdnXxIqxa_7CpHHJKTVMp4YhifQ6YYf
+
+tunnels:
+  frontend:
+    proto: http
+    addr: 3001
+    schemes:
+      - https
+    inspect: true
+    host_header: rewrite

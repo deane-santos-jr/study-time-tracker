@@ -47,4 +47,12 @@ export const sessionService = {
   async delete(sessionId: string): Promise<void> {
     await apiService.delete(`/sessions/${sessionId}`);
   },
+
+  async update(sessionId: string, data: { subjectId?: string; startTime?: string; endTime?: string }): Promise<StudySession> {
+    const response = await apiService.put<StudySession>(`/sessions/${sessionId}`, data);
+    if (response.data) {
+      return response.data;
+    }
+    throw new Error('Failed to update session');
+  },
 };

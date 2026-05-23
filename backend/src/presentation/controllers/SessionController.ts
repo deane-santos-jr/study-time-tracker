@@ -6,6 +6,7 @@ import { StopSession } from '../../application/use-cases/session/StopSession';
 import { GetActiveSession } from '../../application/use-cases/session/GetActiveSession';
 import { GetAllSessions } from '../../application/use-cases/session/GetAllSessions';
 import { DeleteSession } from '../../application/use-cases/session/DeleteSession';
+import { UpdateSession } from '../../application/use-cases/session/UpdateSession';
 import { StudySessionRepository } from '../../infrastructure/database/repositories/StudySessionRepository';
 import { SubjectRepository } from '../../infrastructure/database/repositories/SubjectRepository';
 import { BreakRepository } from '../../infrastructure/database/repositories/BreakRepository';
@@ -140,6 +141,28 @@ export class SessionController {
       res.status(200).json({
         success: true,
         message: 'Session deleted successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async update(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const updateSession = new UpdateSession(
+        this.sessionRepository,
+        this.subjectRepository,
+        this.breakRepository
+      );
+      const userId = req.userId!;
+      const { id } = req.params;
+
+      const session = await updateSession.execute(userId, id, req.body);
+
+      res.status(200).json({
+        success: true,
+        message: 'Session updated successfully',
+        data: session,
       });
     } catch (error) {
       next(error);

@@ -13,6 +13,12 @@ const startSessionSchema = z.object({
   semesterId: z.string().uuid().optional(),
 });
 
+const updateSessionSchema = z.object({
+  subjectId: z.string().uuid('Invalid subject ID').optional(),
+  startTime: z.string().datetime().optional(),
+  endTime: z.string().datetime().optional(),
+});
+
 // All routes require authentication
 router.use(authenticate);
 
@@ -23,6 +29,7 @@ router.post('/:id/resume', sessionController.resume.bind(sessionController));
 router.post('/:id/stop', sessionController.stop.bind(sessionController));
 router.get('/active', sessionController.getActive.bind(sessionController));
 router.get('/', sessionController.getAll.bind(sessionController));
+router.put('/:id', validate(updateSessionSchema), sessionController.update.bind(sessionController));
 router.delete('/:id', sessionController.delete.bind(sessionController));
 
 export default router;
