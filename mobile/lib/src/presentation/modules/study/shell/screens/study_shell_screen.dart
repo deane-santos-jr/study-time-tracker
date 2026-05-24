@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_time_tracker/core/configs/themes.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/semesters/services/semesters_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/subjects/services/subjects_cubit.dart';
 
 /// Bottom-nav shell. Renders the active tab via [StatefulNavigationShell] and
 /// frames it with a dark Cocoa Ink floating pill nav, per DESIGN.md
 /// "in-app — the home tile".
-class StudyShellScreen extends StatelessWidget {
+class StudyShellScreen extends StatefulWidget {
   const StudyShellScreen({super.key, required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
+  @override
+  State<StudyShellScreen> createState() => _StudyShellScreenState();
+}
+
+class _StudyShellScreenState extends State<StudyShellScreen> {
   static const List<_NavItem> _items = [
     _NavItem(label: 'home'),
     // MARK: subjects-nav-start
@@ -20,26 +28,51 @@ class StudyShellScreen extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final currentIndex = navigationShell.currentIndex;
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<SemestersCubit>().load();
+    });
+  }
 
-    return Scaffold(
-      body: navigationShell,
-      extendBody: true,
-      bottomNavigationBar: SafeArea(
-        top: false,
-        minimum: const EdgeInsets.fromLTRB(
-          Spacing.lg,
-          0,
-          Spacing.lg,
-          Spacing.md,
+  @override
+  Widget build(BuildContext context) {
+    final currentIndex = widget.navigationShell.currentIndex;
+
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<SemestersCubit, SemestersState>(
+          listenWhen: (prev, next) {
+            final prevId = prev is SemestersLoaded ? prev.activeSemesterId : null;
+            final nextId = next is SemestersLoaded ? next.activeSemesterId : null;
+            return prevId != nextId;
+          },
+          listener: (context, state) {
+            if (state is SemestersLoaded) {
+              context.read<SubjectsCubit>().loadForSemester(state.activeSemesterId);
+            }
+          },
         ),
-        child: _NavPill(
-          items: _items,
-          currentIndex: currentIndex,
-          onSelect: (i) => navigationShell.goBranch(
-            i,
-            initialLocation: i == currentIndex,
+      ],
+      child: Scaffold(
+        body: widget.navigationShell,
+        extendBody: true,
+        bottomNavigationBar: SafeArea(
+          top: false,
+          minimum: const EdgeInsets.fromLTRB(
+            Spacing.lg,
+            0,
+            Spacing.lg,
+            Spacing.md,
+          ),
+          child: _NavPill(
+            items: _items,
+            currentIndex: currentIndex,
+            onSelect: (i) => widget.navigationShell.goBranch(
+              i,
+              initialLocation: i == currentIndex,
+            ),
           ),
         ),
       ),
