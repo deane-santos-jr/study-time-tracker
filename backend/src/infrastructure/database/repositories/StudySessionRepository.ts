@@ -17,6 +17,7 @@ export class StudySessionRepository implements IStudySessionRepository {
       userId: session.userId,
       subjectId: session.subjectId,
       semesterId: session.semesterId,
+      activityName: session.activityName,
       startTime: session.startTime,
       endTime: session.endTime,
       pausedAt: session.pausedAt,
@@ -75,6 +76,9 @@ export class StudySessionRepository implements IStudySessionRepository {
 
   async update(session: StudySession): Promise<StudySession> {
     await this.repository.update(session.id, {
+      subjectId: session.subjectId,
+      semesterId: session.semesterId,
+      activityName: session.activityName,
       endTime: session.endTime,
       pausedAt: session.pausedAt,
       status: session.status,
@@ -97,12 +101,29 @@ export class StudySessionRepository implements IStudySessionRepository {
     await this.repository.delete(id);
   }
 
+  async orphanBySubjectId(subjectId: string, activityName: string): Promise<number> {
+    const result = await this.repository
+      .createQueryBuilder()
+      .update(StudySessionEntity)
+      .set({
+        subjectId: null,
+        semesterId: null,
+        activityName,
+        updatedAt: () => 'NOW()',
+      })
+      .where('subject_id = :subjectId', { subjectId })
+      .execute();
+
+    return result.affected ?? 0;
+  }
+
   private toDomain(entity: StudySessionEntity): StudySession {
     return new StudySession(
       entity.id,
       entity.userId,
       entity.subjectId,
       entity.semesterId,
+      entity.activityName,
       entity.startTime,
       entity.endTime,
       entity.pausedAt,
