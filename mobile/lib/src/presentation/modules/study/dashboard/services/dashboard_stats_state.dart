@@ -23,6 +23,7 @@ class DashboardStatsLoaded extends DashboardStatsState {
     required this.subjectStats,
     required this.windowSeconds,
     required this.bestWindowSeconds,
+    required this.adHocSeconds,
   });
 
   final int streakDays;
@@ -32,6 +33,11 @@ class DashboardStatsLoaded extends DashboardStatsState {
   final int windowSeconds;
   final int bestWindowSeconds;
 
+  /// Total effective study time (last 7 days) of completed sessions with no
+  /// subjectId — i.e. ad-hoc activities. Drives the "other" aggregate row in
+  /// the dashboard's subject totals list.
+  final int adHocSeconds;
+
   @override
   List<Object?> get props => [
         streakDays,
@@ -40,6 +46,7 @@ class DashboardStatsLoaded extends DashboardStatsState {
         subjectStats,
         windowSeconds,
         bestWindowSeconds,
+        adHocSeconds,
       ];
 }
 

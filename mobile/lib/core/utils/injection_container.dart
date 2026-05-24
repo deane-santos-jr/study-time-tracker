@@ -107,6 +107,7 @@ Future<void> init() async {
   sl.registerFactory(
     () => DashboardStatsCubit(
       analyticsRepository: sl<IAnalyticsRepository>(),
+      sessionRepository: sl<ISessionRepository>(),
     ),
   );
   // MARK: analytics-cubits-end
