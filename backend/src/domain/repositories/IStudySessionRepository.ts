@@ -9,4 +9,13 @@ export interface IStudySessionRepository {
   findBySemesterId(semesterId: string): Promise<StudySession[]>;
   update(session: StudySession): Promise<StudySession>;
   delete(id: string): Promise<void>;
+
+  /**
+   * Convert every session belonging to the given subject into an ad-hoc
+   * session. Used by DeleteSubject (and transitively by DeleteSemester) to
+   * preserve history when a subject is removed. Sets subject_id=NULL,
+   * semester_id=NULL, activity_name=<provided>, and returns the number of
+   * rows affected.
+   */
+  orphanBySubjectId(subjectId: string, activityName: string): Promise<number>;
 }
