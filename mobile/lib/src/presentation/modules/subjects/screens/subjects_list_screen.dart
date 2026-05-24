@@ -3,13 +3,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:study_time_tracker/core/configs/themes.dart';
 import 'package:study_time_tracker/core/utils/core_utils.dart';
+import 'package:study_time_tracker/src/domain/models/semester/semester.dart';
 import 'package:study_time_tracker/src/domain/models/subject/subject.dart';
+import 'package:study_time_tracker/src/domain/models/subject/subject_payload.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/dashboard_stats_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/semesters/services/semesters_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/semesters/widgets/active_semester_pill.dart';
 import 'package:study_time_tracker/src/presentation/modules/subjects/services/subjects_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/subjects/widgets/subject_form_sheet.dart';
 import 'package:study_time_tracker/src/presentation/modules/subjects/widgets/subject_tile.dart';
 import 'package:study_time_tracker/src/presentation/widgets/app_bar.dart';
 import 'package:study_time_tracker/src/presentation/widgets/default_button.dart';
-import 'package:study_time_tracker/src/presentation/widgets/default_textfield.dart';
 
 class SubjectsListScreen extends StatefulWidget {
   const SubjectsListScreen({super.key});
@@ -23,10 +27,6 @@ class _SubjectsListScreenState extends State<SubjectsListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SubjectsCubit>().load();
-      // Per-subject totals come from the same `/analytics` summary the
-      // dashboard reads. Trigger a load if it hasn't already happened (e.g.
-      // user lands directly on /subjects after deep-link).
       final stats = context.read<DashboardStatsCubit>();
       if (stats.state is DashboardStatsInitial) {
         stats.load();
@@ -34,8 +34,52 @@ class _SubjectsListScreenState extends State<SubjectsListScreen> {
     });
   }
 
-  void _onAddSubject(BuildContext context) {
-    context.push('/subjects/new');
+  Future<void> _onAddSubject(BuildContext context) async {
+    final semestersState = context.read<SemestersCubit>().state;
+    final availableSemesters = semestersState is SemestersLoaded
+        ? semestersState.semesters
+        : <Semester>[];
+    final defaultSemesterId = semestersState is SemestersLoaded
+        ? semestersState.activeSemesterId
+        : null;
+
+    final result = await showSubjectFormSheet(
+      context,
+      availableSemesters: availableSemesters,
+      defaultSemesterId: defaultSemesterId,
+    );
+    if (!context.mounted || result == null) return;
+
+    String semesterId;
+    if (result.inlineSemester != null) {
+      final newSemester = await context
+          .read<SemestersCubit>()
+          .create(payload: result.inlineSemester!);
+      if (!context.mounted || newSemester == null) return;
+      if (!newSemester.isActive) {
+        await context.read<SemestersCubit>().activate(id: newSemester.id);
+      }
+      semesterId = newSemester.id;
+    } else {
+      semesterId = result.subject.semesterId;
+    }
+
+    if (!context.mounted) return;
+    final ok = await context.read<SubjectsCubit>().createSubject(
+          payload: SubjectCreatePayload(
+            name: result.subject.name,
+            color: result.subject.color,
+            semesterId: semesterId,
+          ),
+        );
+    if (!context.mounted) return;
+    if (ok) {
+      CoreUtils.showNotification(
+        message: '${result.subject.name.toLowerCase()} added',
+        success: true,
+        context: context,
+      );
+    }
   }
 
   Future<void> _confirmDelete(BuildContext context, Subject subject) async {
@@ -47,9 +91,12 @@ class _SubjectsListScreenState extends State<SubjectsListScreen> {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Radii.lg),
         ),
-        title: Text('delete ${subject.name}?', style: theme.textTheme.titleLarge),
+        title: Text(
+          'delete ${subject.name.toLowerCase()}?',
+          style: theme.textTheme.titleLarge,
+        ),
         content: Text(
-          'sessions for this subject keep their history, but the subject will no longer appear in the list.',
+          'sessions for this subject will be preserved as ad-hoc activities.',
           style: theme.textTheme.bodyMedium,
         ),
         actions: [
@@ -72,8 +119,18 @@ class _SubjectsListScreenState extends State<SubjectsListScreen> {
       final s = cubit.state;
       final msg = s is SubjectsLoaded ? s.mutationError : null;
       if (msg != null) {
-        CoreUtils.showNotification(message: msg, success: false, context: context);
+        CoreUtils.showNotification(
+          message: msg,
+          success: false,
+          context: context,
+        );
       }
+    } else if (ok && context.mounted) {
+      CoreUtils.showNotification(
+        message: 'sessions preserved as ad-hoc activities',
+        success: true,
+        context: context,
+      );
     }
   }
 
@@ -82,18 +139,19 @@ class _SubjectsListScreenState extends State<SubjectsListScreen> {
     return Scaffold(
       appBar: MainAppBar(
         title: 'subjects',
+        titleWidget: BlocBuilder<SemestersCubit, SemestersState>(
+          builder: (context, state) {
+            if (state is! SemestersLoaded) return const SizedBox.shrink();
+            final active = state.activeSemester;
+            if (active == null) return const SizedBox.shrink();
+            return ActiveSemesterPill(semester: active);
+          },
+        ),
         actions: [
-          BlocBuilder<SubjectsCubit, SubjectsState>(
-            builder: (context, state) {
-              if (state is! SubjectsLoaded || state.subjects.isEmpty) {
-                return const SizedBox.shrink();
-              }
-              return IconButton(
-                icon: const Icon(Icons.add_rounded),
-                tooltip: 'add subject',
-                onPressed: () => _onAddSubject(context),
-              );
-            },
+          IconButton(
+            icon: const Icon(Icons.add_rounded),
+            tooltip: 'add subject',
+            onPressed: () => _onAddSubject(context),
           ),
         ],
       ),
@@ -111,9 +169,17 @@ class _SubjectsListScreenState extends State<SubjectsListScreen> {
         },
         builder: (context, state) {
           return switch (state) {
-            SubjectsInitial() || SubjectsLoading() => const _LoadingBody(),
-            SubjectsNoSemesters() => const _NoSemesterBody(),
-            SubjectsError(:final errorMessage) => _ErrorBody(message: errorMessage),
+            SubjectsInitial() || SubjectsLoading() => Center(
+                child: CircularProgressIndicator(
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            SubjectsError(:final errorMessage) => Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(Spacing.lg),
+                  child: Text(errorMessage, textAlign: TextAlign.center),
+                ),
+              ),
             SubjectsLoaded() => _LoadedBody(
                 state: state,
                 onAdd: () => _onAddSubject(context),
@@ -122,257 +188,6 @@ class _SubjectsListScreenState extends State<SubjectsListScreen> {
               ),
           };
         },
-      ),
-    );
-  }
-}
-
-class _LoadingBody extends StatelessWidget {
-  const _LoadingBody();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: CircularProgressIndicator(
-        color: Theme.of(context).colorScheme.primary,
-      ),
-    );
-  }
-}
-
-class _NoSemesterBody extends StatefulWidget {
-  const _NoSemesterBody();
-
-  @override
-  State<_NoSemesterBody> createState() => _NoSemesterBodyState();
-}
-
-class _NoSemesterBodyState extends State<_NoSemesterBody> {
-  final _nameController = TextEditingController();
-  DateTime? _startDate;
-  DateTime? _endDate;
-  bool _submitting = false;
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickDate({required bool start}) async {
-    final now = DateTime.now();
-    final initial = start
-        ? (_startDate ?? now)
-        : (_endDate ?? _startDate?.add(const Duration(days: 90)) ?? now);
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: initial,
-      firstDate: DateTime(now.year - 1),
-      lastDate: DateTime(now.year + 5),
-    );
-    if (picked != null) {
-      setState(() {
-        if (start) {
-          _startDate = picked;
-        } else {
-          _endDate = picked;
-        }
-      });
-    }
-  }
-
-  Future<void> _submit() async {
-    final nameErr = CoreUtils.validateRequired(_nameController.text, field: 'name');
-    if (nameErr != null) {
-      CoreUtils.showNotification(message: nameErr, success: false, context: context);
-      return;
-    }
-    if (_startDate == null || _endDate == null) {
-      CoreUtils.showNotification(
-        message: 'pick both a start and end date',
-        success: false,
-        context: context,
-      );
-      return;
-    }
-    if (!_startDate!.isBefore(_endDate!)) {
-      CoreUtils.showNotification(
-        message: 'start date must be before end date',
-        success: false,
-        context: context,
-      );
-      return;
-    }
-    setState(() => _submitting = true);
-    await context.read<SubjectsCubit>().createSemester(
-          name: _nameController.text.trim(),
-          startDate: _startDate!,
-          endDate: _endDate!,
-        );
-    if (!mounted) return;
-    setState(() => _submitting = false);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final softInk = theme.colorScheme.onSurface.withValues(alpha: InkOpacity.soft);
-
-    return SafeArea(
-      child: SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(
-          Spacing.lg,
-          Spacing.lg,
-          Spacing.lg,
-          _bottomNavReserve(context),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: Spacing.md),
-            Text('start with a semester', style: theme.textTheme.displaySmall),
-            const SizedBox(height: Spacing.xs),
-            Text(
-              'subjects live inside semesters. give yours a name and dates.',
-              style: theme.textTheme.bodyLarge?.copyWith(color: softInk),
-            ),
-            const SizedBox(height: Spacing.xl),
-            DefaultTextfield(
-              controller: _nameController,
-              label: 'semester name',
-              placeholder: 'spring 2026',
-              textInputAction: TextInputAction.next,
-              required: true,
-            ),
-            const SizedBox(height: Spacing.md),
-            _DateField(
-              label: 'start date',
-              value: _startDate,
-              onTap: () => _pickDate(start: true),
-            ),
-            const SizedBox(height: Spacing.md),
-            _DateField(
-              label: 'end date',
-              value: _endDate,
-              onTap: () => _pickDate(start: false),
-            ),
-            const SizedBox(height: Spacing.lg),
-            DefaultButton(
-              title: 'create semester',
-              fullWidth: true,
-              size: ButtonSize.large,
-              isLoading: _submitting,
-              onPressed: _submit,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _DateField extends StatelessWidget {
-  const _DateField({
-    required this.label,
-    required this.value,
-    required this.onTap,
-  });
-
-  final String label;
-  final DateTime? value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final ink = theme.colorScheme.onSurface;
-    final softInk = ink.withValues(alpha: InkOpacity.soft);
-    final hintInk = ink.withValues(alpha: InkOpacity.faint);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.only(bottom: Spacing.sm),
-          child: Text(
-            '$label *',
-            style: theme.textTheme.labelMedium,
-          ),
-        ),
-        InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(Radii.md),
-          child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Spacing.md,
-              vertical: 14,
-            ),
-            decoration: BoxDecoration(
-              border: Border.all(color: ink.withValues(alpha: InkOpacity.hint)),
-              borderRadius: BorderRadius.circular(Radii.md),
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    value != null ? CoreUtils.formatDate(value!) : 'pick a date',
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: value != null ? ink : hintInk,
-                    ),
-                  ),
-                ),
-                Icon(Icons.calendar_today_outlined, size: 18, color: softInk),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _ErrorBody extends StatelessWidget {
-  const _ErrorBody({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return SafeArea(
-      child: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.lg),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Icon(Icons.error_outline,
-                  color: theme.colorScheme.error, size: 48),
-              const SizedBox(height: Spacing.md),
-              Text(
-                'something went wrong',
-                style: theme.textTheme.titleLarge,
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: Spacing.xs),
-              Text(
-                message,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface
-                      .withValues(alpha: InkOpacity.soft),
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: Spacing.lg),
-              DefaultButton(
-                title: 'try again',
-                type: ButtonType.secondary,
-                onPressed: () => context.read<SubjectsCubit>().load(),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -412,8 +227,10 @@ class _LoadedBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: Spacing.md),
-              Text("you haven't added any subjects yet",
-                  style: theme.textTheme.displaySmall),
+              Text(
+                "you haven't added any subjects yet",
+                style: theme.textTheme.displaySmall,
+              ),
               const SizedBox(height: Spacing.xs),
               Text(
                 'pick a color, name your subject, and start tracking.',
@@ -434,10 +251,10 @@ class _LoadedBody extends StatelessWidget {
 
     return RefreshIndicator(
       onRefresh: () async {
-        await context.read<SubjectsCubit>().load();
-        if (context.mounted) {
-          await context.read<DashboardStatsCubit>().load();
-        }
+        final sub = context.read<SubjectsCubit>();
+        final stats = context.read<DashboardStatsCubit>();
+        await sub.loadForSemester(state.semesterId);
+        if (context.mounted) await stats.load();
       },
       color: theme.colorScheme.primary,
       child: BlocBuilder<DashboardStatsCubit, DashboardStatsState>(
@@ -474,7 +291,7 @@ class _LoadedBody extends StatelessWidget {
               final subject = state.subjects[index - 1];
               return SubjectTile(
                 subject: subject,
-                semester: state.semesterFor(subject.semesterId),
+                semester: null,
                 totalSeconds: totalsBySubject[subject.id],
                 loadingTotal: loadingStats,
                 onTap: () => onEdit(subject),
@@ -488,8 +305,6 @@ class _LoadedBody extends StatelessWidget {
   }
 }
 
-/// Match the dashboard's bottom-nav clearance so the last row clears the
-/// floating Cocoa Ink pill in `study_shell_screen.dart`.
 double _bottomNavReserve(BuildContext context) {
   return 56 +
       Spacing.md +

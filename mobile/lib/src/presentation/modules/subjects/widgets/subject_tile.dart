@@ -69,13 +69,15 @@ class SubjectTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: Spacing.xxs),
-                Text(
-                  semester?.name ?? 'no semester',
-                  style: theme.textTheme.bodySmall?.copyWith(color: faintInk),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                if (semester != null) ...[
+                  const SizedBox(height: Spacing.xxs),
+                  Text(
+                    semester!.name,
+                    style: theme.textTheme.bodySmall?.copyWith(color: faintInk),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ],
             ),
           ),
