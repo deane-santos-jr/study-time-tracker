@@ -1,15 +1,12 @@
 class StartSessionPayload {
   /// Subject-attached session.
-  StartSessionPayload.forSubject({required String subjectId, String? semesterId})
-      : subjectId = subjectId,
-        semesterId = semesterId,
-        activityName = null;
+  StartSessionPayload.forSubject({required this.subjectId, this.semesterId})
+      : activityName = null;
 
   /// Ad-hoc session (no subject, free-text activity).
-  StartSessionPayload.adHoc({required String activityName})
+  StartSessionPayload.adHoc({required this.activityName})
       : subjectId = null,
-        semesterId = null,
-        activityName = activityName;
+        semesterId = null;
 
   final String? subjectId;
   final String? semesterId;
