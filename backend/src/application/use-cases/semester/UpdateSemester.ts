@@ -39,6 +39,19 @@ export class UpdateSemester {
 
     if (dto.isActive !== undefined) {
       if (dto.isActive) {
+        // Enforce at-most-one-active per user: deactivate any other active
+        // semester before activating this one. The mobile / web clients
+        // assume a single active term (the dashboard pill, "active" badge,
+        // and active-term subject filtering all key off it), so the
+        // invariant lives in the use case rather than the client.
+        const others = await this.semesterRepository.findByUserId(userId);
+        for (const other of others) {
+          if (other.id !== semester.id && other.isActive) {
+            other.deactivate();
+            other.updatedAt = new Date();
+            await this.semesterRepository.update(other);
+          }
+        }
         semester.activate();
       } else {
         semester.deactivate();
