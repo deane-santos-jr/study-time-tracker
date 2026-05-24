@@ -27,13 +27,15 @@ class SessionTile extends StatefulWidget {
     required this.onResume,
     required this.onStop,
     required this.onActivityChanged,
+    required this.onToggleAdHoc,
   });
 
   final StudySession? activeSession;
   final Subject? activeSubject;
   final Subject? pickedSubject;
 
-  /// True when the user has tapped the "+ something else" row.
+  /// True when the user has tapped the "or start an independent activity"
+  /// link below the start button.
   final bool adHocMode;
 
   /// Owned by the parent so re-builds don't destroy in-flight text. The
@@ -53,6 +55,11 @@ class SessionTile extends StatefulWidget {
   /// Fires on every text change in the ad-hoc input. Parent updates start
   /// button enabled state based on `text.trim().isNotEmpty`.
   final ValueChanged<String> onActivityChanged;
+
+  /// Toggles ad-hoc mode (the snippet below the start button). When entering
+  /// ad-hoc, the parent also clears the picked subject; leaving ad-hoc clears
+  /// the activity-name input.
+  final VoidCallback onToggleAdHoc;
 
   @override
   State<SessionTile> createState() => _SessionTileState();
@@ -133,6 +140,29 @@ class _SessionTileState extends State<SessionTile> {
                 ),
               ),
               child: const Text('end session'),
+            ),
+          ] else ...[
+            const SizedBox(height: Spacing.xs),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: widget.mutating ? null : widget.onToggleAdHoc,
+                style: TextButton.styleFrom(
+                  foregroundColor: ink.withValues(alpha: InkOpacity.soft),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: Spacing.xs,
+                    vertical: 2,
+                  ),
+                  minimumSize: Size.zero,
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: theme.textTheme.labelSmall,
+                ),
+                child: Text(
+                  widget.adHocMode
+                      ? 'use a subject instead'
+                      : '+ independent activity',
+                ),
+              ),
             ),
           ],
         ],

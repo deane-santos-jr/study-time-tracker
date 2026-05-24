@@ -19,12 +19,12 @@ class StudyShellScreen extends StatefulWidget {
 
 class _StudyShellScreenState extends State<StudyShellScreen> {
   static const List<_NavItem> _items = [
-    _NavItem(label: 'home'),
-    // MARK: subjects-nav-start
-    _NavItem(label: 'subjects'),
-    // MARK: subjects-nav-end
-    _NavItem(label: 'analytics'),
-    _NavItem(label: 'profile'),
+    _NavItem(label: 'today'),
+    // MARK: history-nav-start
+    _NavItem(label: 'history'),
+    // MARK: history-nav-end
+    _NavItem(label: 'stats'),
+    _NavItem(label: 'you'),
   ];
 
   @override
@@ -33,6 +33,7 @@ class _StudyShellScreenState extends State<StudyShellScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<SemestersCubit>().load();
+      context.read<SubjectsCubit>().load();
     });
   }
 
@@ -40,39 +41,23 @@ class _StudyShellScreenState extends State<StudyShellScreen> {
   Widget build(BuildContext context) {
     final currentIndex = widget.navigationShell.currentIndex;
 
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<SemestersCubit, SemestersState>(
-          listenWhen: (prev, next) {
-            final prevId = prev is SemestersLoaded ? prev.activeSemesterId : null;
-            final nextId = next is SemestersLoaded ? next.activeSemesterId : null;
-            return prevId != nextId;
-          },
-          listener: (context, state) {
-            if (state is SemestersLoaded) {
-              context.read<SubjectsCubit>().loadForSemester(state.activeSemesterId);
-            }
-          },
+    return Scaffold(
+      body: widget.navigationShell,
+      extendBody: true,
+      bottomNavigationBar: SafeArea(
+        top: false,
+        minimum: const EdgeInsets.fromLTRB(
+          Spacing.lg,
+          0,
+          Spacing.lg,
+          Spacing.md,
         ),
-      ],
-      child: Scaffold(
-        body: widget.navigationShell,
-        extendBody: true,
-        bottomNavigationBar: SafeArea(
-          top: false,
-          minimum: const EdgeInsets.fromLTRB(
-            Spacing.lg,
-            0,
-            Spacing.lg,
-            Spacing.md,
-          ),
-          child: _NavPill(
-            items: _items,
-            currentIndex: currentIndex,
-            onSelect: (i) => widget.navigationShell.goBranch(
-              i,
-              initialLocation: i == currentIndex,
-            ),
+        child: _NavPill(
+          items: _items,
+          currentIndex: currentIndex,
+          onSelect: (i) => widget.navigationShell.goBranch(
+            i,
+            initialLocation: i == currentIndex,
           ),
         ),
       ),

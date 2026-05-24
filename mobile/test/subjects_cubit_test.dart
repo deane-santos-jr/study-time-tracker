@@ -34,19 +34,7 @@ void main() {
   });
 
   blocTest<SubjectsCubit, SubjectsState>(
-    'loadForSemester(null) emits Loaded with empty list',
-    build: () => SubjectsCubit(subjectRepository: repo),
-    act: (c) => c.loadForSemester(null),
-    expect: () => [
-      isA<SubjectsLoading>(),
-      isA<SubjectsLoaded>()
-          .having((s) => s.subjects.length, 'subjects', 0)
-          .having((s) => s.semesterId, 'semesterId', null),
-    ],
-  );
-
-  blocTest<SubjectsCubit, SubjectsState>(
-    'loadForSemester(id) filters to that semester',
+    'load() emits Loaded with every subject the user owns',
     build: () {
       when(() => repo.getAll()).thenAnswer(
         (_) async => APIListResponse<Subject>(
@@ -62,17 +50,36 @@ void main() {
       );
       return SubjectsCubit(subjectRepository: repo);
     },
-    act: (c) => c.loadForSemester('sem-a'),
+    act: (c) => c.load(),
     expect: () => [
       isA<SubjectsLoading>(),
       isA<SubjectsLoaded>()
-          .having((s) => s.subjects.length, 'count', 2)
+          .having((s) => s.subjects.length, 'count', 3)
           .having(
             (s) => s.subjects.map((x) => x.id).toList(),
             'ids',
-            ['1', '3'],
-          )
-          .having((s) => s.semesterId, 'semesterId', 'sem-a'),
+            ['1', '2', '3'],
+          ),
+    ],
+  );
+
+  blocTest<SubjectsCubit, SubjectsState>(
+    'load() with empty API result emits Loaded with empty list',
+    build: () {
+      when(() => repo.getAll()).thenAnswer(
+        (_) async => APIListResponse<Subject>(
+          success: true,
+          message: 'ok',
+          statusCode: 200,
+          data: const [],
+        ),
+      );
+      return SubjectsCubit(subjectRepository: repo);
+    },
+    act: (c) => c.load(),
+    expect: () => [
+      isA<SubjectsLoading>(),
+      isA<SubjectsLoaded>().having((s) => s.subjects.length, 'count', 0),
     ],
   );
 }

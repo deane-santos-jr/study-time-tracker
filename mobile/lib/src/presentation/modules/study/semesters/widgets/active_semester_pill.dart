@@ -4,11 +4,19 @@ import 'package:study_time_tracker/core/configs/themes.dart';
 import 'package:study_time_tracker/src/domain/models/semester/semester.dart';
 
 class ActiveSemesterPill extends StatelessWidget {
-  const ActiveSemesterPill({super.key, required this.semester});
+  const ActiveSemesterPill({
+    super.key,
+    this.semester,
+    this.isLoading = false,
+  });
 
-  /// Null while semesters are still loading. Renders the `"…"` placeholder
-  /// in that case, with no tap target.
+  /// Null when there's no active term — pill renders the "+ add a term"
+  /// affordance and still routes to /semesters on tap.
   final Semester? semester;
+
+  /// True while semesters are still loading. Renders a non-interactive
+  /// "…" placeholder so the title doesn't flash empty.
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -16,8 +24,14 @@ class ActiveSemesterPill extends StatelessWidget {
     final ink = theme.colorScheme.onSurface;
     final bg = theme.colorScheme.surfaceContainer;
 
-    final label = semester?.name ?? '…';
-    final isLoading = semester == null;
+    final String label;
+    if (isLoading) {
+      label = '…';
+    } else if (semester != null) {
+      label = semester!.name.toLowerCase();
+    } else {
+      label = '+ add a term';
+    }
 
     final pill = ConstrainedBox(
       constraints: const BoxConstraints(
@@ -32,7 +46,7 @@ class ActiveSemesterPill extends StatelessWidget {
         ),
         alignment: Alignment.center,
         child: Text(
-          label.toLowerCase(),
+          label,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(

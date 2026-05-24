@@ -119,14 +119,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: MainAppBar(
         title: '',
-        titleWidget: BlocBuilder<SemestersCubit, SemestersState>(
-          builder: (context, state) {
-            if (state is! SemestersLoaded) return const SizedBox.shrink();
-            final active = state.activeSemester;
-            if (active == null) return const SizedBox.shrink();
-            return ActiveSemesterPill(semester: active);
-          },
-        ),
         actions: [
           PopupMenuButton<_HomeMenuAction>(
             icon: const Icon(Icons.more_horiz_rounded),
@@ -250,9 +242,17 @@ class _Body extends StatelessWidget {
       );
     }
 
-    final subjects = subjectsState is SubjectsLoaded
+    final semestersState = context.watch<SemestersCubit>().state;
+    final activeSemesterId = semestersState is SemestersLoaded
+        ? semestersState.activeSemesterId
+        : null;
+    final allSubjects = subjectsState is SubjectsLoaded
         ? (subjectsState as SubjectsLoaded).subjects
         : const <Subject>[];
+    final subjects = activeSemesterId == null
+        ? const <Subject>[]
+        : allSubjects.where((s) => s.semesterId == activeSemesterId).toList();
+    final activeTermSubjectIds = {for (final s in subjects) s.id};
 
     final activeSession = switch (sessionState) {
       ActiveSessionRunning(:final session) => session,
@@ -312,6 +312,7 @@ class _Body extends StatelessWidget {
               onResume: onResume,
               onStop: onStop,
               onActivityChanged: onActivityChanged,
+              onToggleAdHoc: onSelectAdHoc,
             ),
             const SizedBox(height: Spacing.md),
             _StatTilesRow(
@@ -323,11 +324,10 @@ class _Body extends StatelessWidget {
               _SubjectPickerSection(
                 subjects: subjects,
                 selectedId: pickedSubjectId,
-                adHocSelected: adHocMode,
                 onSelect: onPickSubject,
-                onSelectAdHoc: onSelectAdHoc,
               ),
-            if (isActive) const _SubjectTotalsList(),
+            if (isActive)
+              _SubjectTotalsList(activeTermSubjectIds: activeTermSubjectIds),
           ],
         ),
       ),
@@ -524,29 +524,30 @@ class _StatTile extends StatelessWidget {
 }
 
 class _SubjectTotalsList extends StatelessWidget {
-  const _SubjectTotalsList();
+  const _SubjectTotalsList({required this.activeTermSubjectIds});
+
+  final Set<String> activeTermSubjectIds;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final brightness = theme.brightness;
     final ink = theme.colorScheme.onSurface;
-    final softInk = ink.withValues(alpha: InkOpacity.soft);
 
     return BlocBuilder<DashboardStatsCubit, DashboardStatsState>(
       builder: (context, state) {
         if (state is! DashboardStatsLoaded) return const SizedBox.shrink();
-        final stats = state.subjectStats.where((s) => s.totalTime > 0).toList();
+        final stats = state.subjectStats
+            .where((s) =>
+                s.totalTime > 0 && activeTermSubjectIds.contains(s.subjectId))
+            .toList();
         final adHocSeconds = state.adHocSeconds;
         if (stats.isEmpty && adHocSeconds == 0) return const SizedBox.shrink();
 
         return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              'your subjects',
-              style: theme.textTheme.labelSmall?.copyWith(color: softInk),
-            ),
+            const _SubjectsHeader(),
             const SizedBox(height: Spacing.sm),
             for (var i = 0; i < stats.length; i++) ...[
               _SubjectTotalRow(stat: stats[i], brightness: brightness),
@@ -659,37 +660,55 @@ class _SubjectPickerSection extends StatelessWidget {
   const _SubjectPickerSection({
     required this.subjects,
     required this.selectedId,
-    required this.adHocSelected,
     required this.onSelect,
-    required this.onSelectAdHoc,
   });
 
   final List<Subject> subjects;
   final String? selectedId;
-  final bool adHocSelected;
   final ValueChanged<Subject> onSelect;
-  final VoidCallback onSelectAdHoc;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final softInk = theme.colorScheme.onSurface
-        .withValues(alpha: InkOpacity.soft);
-
+    if (subjects.isEmpty) return const SizedBox.shrink();
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'your subjects',
-          style: theme.textTheme.labelSmall?.copyWith(color: softInk),
-        ),
+        const _SubjectsHeader(),
         const SizedBox(height: Spacing.sm),
         SubjectSelector(
           subjects: subjects,
           selectedId: selectedId,
-          adHocSelected: adHocSelected,
           onSelect: onSelect,
-          onSelectAdHoc: onSelectAdHoc,
+        ),
+      ],
+    );
+  }
+}
+
+class _SubjectsHeader extends StatelessWidget {
+  const _SubjectsHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final softInk =
+        theme.colorScheme.onSurface.withValues(alpha: InkOpacity.soft);
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            'your subjects',
+            style: theme.textTheme.labelSmall?.copyWith(color: softInk),
+          ),
+        ),
+        BlocBuilder<SemestersCubit, SemestersState>(
+          builder: (context, state) {
+            if (state is! SemestersLoaded) {
+              return const ActiveSemesterPill(isLoading: true);
+            }
+            return ActiveSemesterPill(semester: state.activeSemester);
+          },
         ),
       ],
     );

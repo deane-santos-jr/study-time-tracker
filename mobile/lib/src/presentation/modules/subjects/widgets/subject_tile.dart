@@ -14,16 +14,16 @@ class SubjectTile extends StatelessWidget {
     super.key,
     required this.subject,
     required this.semester,
-    required this.onTap,
-    required this.onDelete,
+    this.onTap,
+    this.onDelete,
     this.totalSeconds,
     this.loadingTotal = false,
   });
 
   final Subject subject;
   final Semester? semester;
-  final VoidCallback onTap;
-  final VoidCallback onDelete;
+  final VoidCallback? onTap;
+  final VoidCallback? onDelete;
 
   /// Lifetime effective study time for the subject in seconds, or `null` if
   /// the user has no sessions yet (no row in `subjectStats`).
@@ -92,11 +92,12 @@ class SubjectTile extends StatelessWidget {
             ),
             faintStyle: theme.textTheme.bodySmall?.copyWith(color: faintInk),
           ),
-          IconButton(
-            icon: Icon(Icons.delete_outline, color: softInk),
-            tooltip: 'delete subject',
-            onPressed: onDelete,
-          ),
+          if (onDelete != null)
+            IconButton(
+              icon: Icon(Icons.delete_outline, color: softInk),
+              tooltip: 'delete subject',
+              onPressed: onDelete,
+            ),
         ],
       ),
     );

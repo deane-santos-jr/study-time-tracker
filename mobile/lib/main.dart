@@ -6,6 +6,7 @@ import 'package:study_time_tracker/core/utils/injection_container.dart';
 import 'package:study_time_tracker/core/utils/router.dart';
 import 'package:study_time_tracker/src/domain/services/token_storage_service_intf.dart';
 import 'package:study_time_tracker/src/presentation/modules/authentication/services/authentication_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/history/services/history_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/active_session_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/dashboard_stats_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/semesters/services/semesters_cubit.dart';
@@ -57,6 +58,9 @@ class _MyAppState extends State<MyApp> {
         // MARK: sessions-providers-start
         BlocProvider(create: (_) => sl<ActiveSessionCubit>()),
         // MARK: sessions-providers-end
+        // MARK: history-providers-start
+        BlocProvider(create: (_) => sl<HistoryCubit>()),
+        // MARK: history-providers-end
         // MARK: analytics-providers-start
         BlocProvider(create: (_) => sl<DashboardStatsCubit>()),
         // MARK: analytics-providers-end

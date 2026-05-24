@@ -13,20 +13,14 @@ class SubjectsCubit extends Cubit<SubjectsState> {
 
   final ISubjectRepository subjectRepository;
 
-  /// Load all subjects, optionally filtered to a semester. Pass null to clear
-  /// to "no active semester, no subjects."
-  Future<void> loadForSemester(String? semesterId) async {
+  /// Load every subject the user owns, across all semesters. The subjects
+  /// screen is a global manager — semester scoping happens at consumer sites
+  /// (e.g. the dashboard picker filters by the active semester).
+  Future<void> load() async {
     try {
       emit(const SubjectsLoading());
-      if (semesterId == null) {
-        emit(const SubjectsLoaded(subjects: [], semesterId: null));
-        return;
-      }
       final response = await subjectRepository.getAll();
-      final filtered = response.data
-          .where((s) => s.semesterId == semesterId)
-          .toList();
-      emit(SubjectsLoaded(subjects: filtered, semesterId: semesterId));
+      emit(SubjectsLoaded(subjects: response.data));
     } catch (e) {
       emit(SubjectsError(errorMessage: CoreUtils.getErrorMessage(e)));
     }
@@ -41,15 +35,10 @@ class SubjectsCubit extends Cubit<SubjectsState> {
         emit(current.copyWith(mutationError: response.message));
         return false;
       }
-      // Only add to the local list if this subject belongs to the current
-      // semester filter. Otherwise it's a subject created during semester
-      // switch — load will reconcile.
-      if (response.data!.semesterId == current.semesterId) {
-        emit(current.copyWith(
-          subjects: [...current.subjects, response.data!],
-          clearError: true,
-        ));
-      }
+      emit(current.copyWith(
+        subjects: [...current.subjects, response.data!],
+        clearError: true,
+      ));
       return true;
     } catch (e) {
       emit(current.copyWith(mutationError: CoreUtils.getErrorMessage(e)));

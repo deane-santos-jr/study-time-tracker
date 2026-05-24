@@ -4,11 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:study_time_tracker/src/domain/services/token_storage_service_intf.dart';
 import 'package:study_time_tracker/src/presentation/modules/authentication/screens/login_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/authentication/screens/register_screen.dart';
+import 'package:study_time_tracker/src/presentation/modules/history/screens/history_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/screens/dashboard_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/semesters/screens/semesters_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/shell/screens/study_shell_screen.dart';
-import 'package:study_time_tracker/src/presentation/modules/subjects/screens/subject_form_screen.dart';
-import 'package:study_time_tracker/src/presentation/modules/subjects/screens/subjects_list_screen.dart';
 
 GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
       debugLogDiagnostics: kDebugMode,
@@ -34,11 +33,13 @@ GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
           path: '/register',
           pageBuilder: (_, state) => _page(const RegisterScreen(), state.pageKey),
         ),
+        // MARK: semesters-routes-start
         GoRoute(
           path: '/semesters',
           pageBuilder: (_, state) =>
               _page(const SemestersScreen(), state.pageKey),
         ),
+        // MARK: semesters-routes-end
         // MARK: study-shell-routes-start
         StatefulShellRoute.indexedStack(
           pageBuilder: (_, state, navigationShell) => _page(
@@ -55,34 +56,23 @@ GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
                 ),
               ],
             ),
-            // MARK: subjects-routes-start
+            // MARK: history-routes-start
             StatefulShellBranch(
               routes: [
                 GoRoute(
-                  path: '/subjects',
+                  path: '/history',
                   pageBuilder: (_, state) =>
-                      _page(const SubjectsListScreen(), state.pageKey),
-                  routes: [
-                    GoRoute(
-                      path: ':id',
-                      pageBuilder: (_, state) => _page(
-                        SubjectFormScreen(
-                          subjectId: state.pathParameters['id'],
-                        ),
-                        state.pageKey,
-                      ),
-                    ),
-                  ],
+                      _page(const HistoryScreen(), state.pageKey),
                 ),
               ],
             ),
-            // MARK: subjects-routes-end
+            // MARK: history-routes-end
             StatefulShellBranch(
               routes: [
                 GoRoute(
                   path: '/analytics',
                   pageBuilder: (_, state) => _page(
-                    const _Placeholder(title: 'analytics'),
+                    const _Placeholder(title: 'stats'),
                     state.pageKey,
                   ),
                 ),
@@ -93,7 +83,7 @@ GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
                 GoRoute(
                   path: '/profile',
                   pageBuilder: (_, state) => _page(
-                    const _Placeholder(title: 'profile'),
+                    const _Placeholder(title: 'you'),
                     state.pageKey,
                   ),
                 ),
