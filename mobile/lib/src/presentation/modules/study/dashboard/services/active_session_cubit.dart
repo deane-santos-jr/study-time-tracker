@@ -36,17 +36,28 @@ class ActiveSessionCubit extends Cubit<ActiveSessionState> {
     }
   }
 
-  Future<void> start({required String subjectId, String? semesterId}) async {
+  /// Start a subject-attached session.
+  Future<void> start({required String subjectId}) async {
+    await _startWithPayload(
+      StartSessionPayload.forSubject(subjectId: subjectId),
+    );
+  }
+
+  /// Start an ad-hoc session with the given activity name.
+  Future<void> startAdHoc({required String activityName}) async {
+    final trimmed = activityName.trim();
+    if (trimmed.isEmpty) return;
+    await _startWithPayload(
+      StartSessionPayload.adHoc(activityName: trimmed),
+    );
+  }
+
+  Future<void> _startWithPayload(StartSessionPayload payload) async {
     final prev = state;
     if (prev is! ActiveSessionIdle) return;
     try {
       emit(prev.copyWith(mutating: true));
-      final response = await sessionRepository.start(
-        payload: StartSessionPayload(
-          subjectId: subjectId,
-          semesterId: semesterId,
-        ),
-      );
+      final response = await sessionRepository.start(payload: payload);
       final session = response.data;
       if (session == null) {
         emit(prev.copyWith(
@@ -128,7 +139,6 @@ class ActiveSessionCubit extends Cubit<ActiveSessionState> {
         ? prev.session.id
         : (prev as ActiveSessionPaused).session.id;
     try {
-      // Emit a mutating clone of whichever state we're in.
       if (prev is ActiveSessionRunning) {
         emit(prev.copyWith(mutating: true));
       } else if (prev is ActiveSessionPaused) {
@@ -136,7 +146,6 @@ class ActiveSessionCubit extends Cubit<ActiveSessionState> {
       }
       final response = await sessionRepository.stop(id: id);
       final completed = response.data;
-      // Recompute today's totals so the just-finished session is included.
       final today = await _computeTodayTotals();
       emit(ActiveSessionIdle(
         todaySeconds: today.seconds,
@@ -192,7 +201,14 @@ class ActiveSessionCubit extends Cubit<ActiveSessionState> {
       if (s.status != SessionStatus.completed) continue;
       if (s.startTime.isBefore(startOfDay)) continue;
       total += s.effectiveStudyTime ?? 0;
-      subjects.add(s.subjectId);
+      // Ad-hoc sessions don't have a subjectId; bucket them by activityName
+      // (prefixed with a sentinel so a subject named "X" and an ad-hoc named
+      // "X" don't collide).
+      if (s.subjectId != null) {
+        subjects.add(s.subjectId!);
+      } else if (s.activityName != null) {
+        subjects.add('adhoc:${s.activityName}');
+      }
     }
     return _TodayTotals(total, subjects.length);
   }

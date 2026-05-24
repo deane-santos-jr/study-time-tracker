@@ -30,6 +30,7 @@ void main() {
     return StudySession(
       id: 'sess-1',
       subjectId: 'subj-1',
+      activityName: null,
       startTime: startTime ?? start,
       pausedAt: pausedAt,
       status: status,
