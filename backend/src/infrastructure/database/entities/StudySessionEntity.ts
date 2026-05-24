@@ -17,11 +17,14 @@ export class StudySessionEntity {
   @Column({ name: 'user_id' })
   userId!: string;
 
-  @Column({ name: 'subject_id' })
-  subjectId!: string;
+  @Column({ name: 'subject_id', type: 'varchar', length: 36, nullable: true })
+  subjectId!: string | null;
 
-  @Column({ name: 'semester_id' })
-  semesterId!: string;
+  @Column({ name: 'activity_name', type: 'varchar', length: 100, nullable: true })
+  activityName!: string | null;
+
+  @Column({ name: 'semester_id', type: 'varchar', length: 36, nullable: true })
+  semesterId!: string | null;
 
   @Column({ name: 'start_time', type: 'datetime' })
   startTime!: Date;
@@ -57,9 +60,15 @@ export class StudySessionEntity {
   @JoinColumn({ name: 'user_id' })
   user!: UserEntity;
 
-  @ManyToOne(() => SubjectEntity, (subject) => subject.sessions, { onDelete: 'CASCADE' })
+  // FK has no referential action in the DB (default RESTRICT) — see the
+  // migration AddSessionActivityName1700000000005 for rationale (MySQL forbids
+  // both a CHECK constraint and ON DELETE SET NULL on the same column).
+  @ManyToOne(() => SubjectEntity, (subject) => subject.sessions, {
+    onDelete: 'RESTRICT',
+    nullable: true,
+  })
   @JoinColumn({ name: 'subject_id' })
-  subject!: SubjectEntity;
+  subject!: SubjectEntity | null;
 
   @OneToMany(() => BreakEntity, (breakEntity) => breakEntity.session)
   breaks?: BreakEntity[];
