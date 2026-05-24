@@ -15,47 +15,39 @@ class SubjectsLoading extends SubjectsState {
   const SubjectsLoading();
 }
 
-class SubjectsNoSemesters extends SubjectsState {
-  const SubjectsNoSemesters();
-}
-
 class SubjectsLoaded extends SubjectsState {
   const SubjectsLoaded({
     required this.subjects,
-    required this.semesters,
-    required this.activeSemesterId,
+    required this.semesterId,
     this.mutationError,
   });
 
+  /// Subjects belonging to the semester filter applied by the cubit. When
+  /// `semesterId` is null (no active semester), this list is empty by design
+  /// — subjects require a semester so a fresh user has none.
   final List<Subject> subjects;
-  final List<Semester> semesters;
-  final String activeSemesterId;
+
+  /// The semester filter applied to produce this list. Null when no semester
+  /// is active (and therefore no subjects can exist yet).
+  final String? semesterId;
+
   final String? mutationError;
 
   SubjectsLoaded copyWith({
     List<Subject>? subjects,
-    List<Semester>? semesters,
-    String? activeSemesterId,
+    String? semesterId,
     String? mutationError,
+    bool clearError = false,
   }) {
     return SubjectsLoaded(
       subjects: subjects ?? this.subjects,
-      semesters: semesters ?? this.semesters,
-      activeSemesterId: activeSemesterId ?? this.activeSemesterId,
-      mutationError: mutationError,
+      semesterId: semesterId ?? this.semesterId,
+      mutationError: clearError ? null : (mutationError ?? this.mutationError),
     );
   }
 
-  Semester? semesterFor(String id) {
-    for (final s in semesters) {
-      if (s.id == id) return s;
-    }
-    return null;
-  }
-
   @override
-  List<Object?> get props =>
-      [subjects, semesters, activeSemesterId, mutationError];
+  List<Object?> get props => [subjects, semesterId, mutationError];
 }
 
 class SubjectsError extends SubjectsState {

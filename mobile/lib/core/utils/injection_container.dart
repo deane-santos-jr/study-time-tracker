@@ -86,10 +86,7 @@ Future<void> init() async {
 
   // MARK: subjects-cubits-start
   sl.registerFactory(
-    () => SubjectsCubit(
-      subjectRepository: sl<ISubjectRepository>(),
-      semesterRepository: sl<ISemesterRepository>(),
-    ),
+    () => SubjectsCubit(subjectRepository: sl<ISubjectRepository>()),
   );
   // MARK: subjects-cubits-end
 
