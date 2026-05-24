@@ -33,6 +33,7 @@ router.use(authenticate);
 router.post('/', validate(createSemesterSchema), semesterController.create.bind(semesterController));
 router.get('/', semesterController.getAll.bind(semesterController));
 router.get('/active', semesterController.getActive.bind(semesterController));
+router.get('/:id/stats', semesterController.getStats.bind(semesterController));
 router.put('/:id', validate(updateSemesterSchema), semesterController.update.bind(semesterController));
 router.delete('/:id', semesterController.delete.bind(semesterController));
 

@@ -4,6 +4,7 @@ import { GetAllSemesters } from '../../application/use-cases/semester/GetAllSeme
 import { UpdateSemester } from '../../application/use-cases/semester/UpdateSemester';
 import { DeleteSemester } from '../../application/use-cases/semester/DeleteSemester';
 import { GetActiveSemester } from '../../application/use-cases/semester/GetActiveSemester';
+import { GetSemesterStats } from '../../application/use-cases/semester/GetSemesterStats';
 import { SemesterRepository } from '../../infrastructure/database/repositories/SemesterRepository';
 import { SubjectRepository } from '../../infrastructure/database/repositories/SubjectRepository';
 import { StudySessionRepository } from '../../infrastructure/database/repositories/StudySessionRepository';
@@ -82,6 +83,28 @@ export class SemesterController {
         success: true,
         message: 'Semester updated successfully',
         data: semester,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getStats(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const getStats = new GetSemesterStats(
+        this.semesterRepository,
+        this.subjectRepository,
+        this.sessionRepository
+      );
+      const userId = req.userId!;
+      const { id } = req.params;
+
+      const stats = await getStats.execute(userId, id);
+
+      res.status(200).json({
+        success: true,
+        message: 'Semester stats retrieved successfully',
+        data: stats,
       });
     } catch (error) {
       next(error);
