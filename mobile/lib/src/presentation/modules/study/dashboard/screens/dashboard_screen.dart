@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:study_time_tracker/core/configs/themes.dart';
 import 'package:study_time_tracker/core/utils/core_utils.dart';
 import 'package:study_time_tracker/src/domain/models/analytics/analytics_summary.dart';
@@ -9,13 +10,14 @@ import 'package:study_time_tracker/src/presentation/modules/study/dashboard/serv
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/dashboard_stats_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/widgets/session_tile.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/widgets/subject_selector.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/dashboard/widgets/subjects_empty_hint.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/semesters/services/semesters_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/semesters/widgets/active_semester_pill.dart';
 import 'package:study_time_tracker/src/presentation/modules/subjects/services/subjects_cubit.dart';
 import 'package:study_time_tracker/src/presentation/widgets/app_bar.dart';
 import 'package:study_time_tracker/src/presentation/widgets/pulp_tile.dart';
 
-enum _HomeMenuAction { signOut }
+enum _HomeMenuAction { manageTerms, signOut }
 
 /// "The home screen is a single page that answers what am I doing right now
 /// and how was today so far." — DESIGN.md home tile.
@@ -129,11 +131,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             onSelected: (action) {
               switch (action) {
+                case _HomeMenuAction.manageTerms:
+                  context.push('/semesters');
                 case _HomeMenuAction.signOut:
                   context.read<AuthenticationCubit>().logout();
               }
             },
             itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: _HomeMenuAction.manageTerms,
+                child: Text('manage terms'),
+              ),
               PopupMenuItem(
                 value: _HomeMenuAction.signOut,
                 child: Text('sign out'),
@@ -246,6 +254,8 @@ class _Body extends StatelessWidget {
     final activeSemesterId = semestersState is SemestersLoaded
         ? semestersState.activeSemesterId
         : null;
+    final dataReady = semestersState is SemestersLoaded &&
+        subjectsState is SubjectsLoaded;
     final allSubjects = subjectsState is SubjectsLoaded
         ? (subjectsState as SubjectsLoaded).subjects
         : const <Subject>[];
@@ -325,6 +335,8 @@ class _Body extends StatelessWidget {
                 subjects: subjects,
                 selectedId: pickedSubjectId,
                 onSelect: onPickSubject,
+                hasActiveTerm: activeSemesterId != null,
+                dataReady: dataReady,
               ),
             if (isActive)
               _SubjectTotalsList(activeTermSubjectIds: activeTermSubjectIds),
@@ -661,25 +673,33 @@ class _SubjectPickerSection extends StatelessWidget {
     required this.subjects,
     required this.selectedId,
     required this.onSelect,
+    required this.hasActiveTerm,
+    required this.dataReady,
   });
 
   final List<Subject> subjects;
   final String? selectedId;
   final ValueChanged<Subject> onSelect;
+  final bool hasActiveTerm;
+  final bool dataReady;
 
   @override
   Widget build(BuildContext context) {
-    if (subjects.isEmpty) return const SizedBox.shrink();
+    final isEmpty = subjects.isEmpty;
+    if (isEmpty && !dataReady) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const _SubjectsHeader(),
         const SizedBox(height: Spacing.sm),
-        SubjectSelector(
-          subjects: subjects,
-          selectedId: selectedId,
-          onSelect: onSelect,
-        ),
+        if (isEmpty)
+          SubjectsEmptyHint(hasActiveTerm: hasActiveTerm)
+        else
+          SubjectSelector(
+            subjects: subjects,
+            selectedId: selectedId,
+            onSelect: onSelect,
+          ),
       ],
     );
   }
