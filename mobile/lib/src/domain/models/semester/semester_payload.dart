@@ -24,3 +24,24 @@ class SemesterCreatePayload {
     return '$y-$m-$d';
   }
 }
+
+class SemesterUpdatePayload {
+  SemesterUpdatePayload({
+    this.name,
+    this.startDate,
+    this.endDate,
+    this.isActive,
+  });
+
+  final String? name;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool? isActive;
+
+  Map<String, dynamic> toJson() => {
+        if (name != null) 'name': name,
+        if (startDate != null) 'startDate': SemesterCreatePayload._formatDate(startDate!),
+        if (endDate != null) 'endDate': SemesterCreatePayload._formatDate(endDate!),
+        if (isActive != null) 'isActive': isActive,
+      };
+}
