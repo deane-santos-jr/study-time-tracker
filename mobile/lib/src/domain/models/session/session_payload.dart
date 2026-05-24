@@ -1,11 +1,23 @@
 class StartSessionPayload {
-  StartSessionPayload({required this.subjectId, this.semesterId});
+  /// Subject-attached session.
+  StartSessionPayload.forSubject({required String subjectId, String? semesterId})
+      : subjectId = subjectId,
+        semesterId = semesterId,
+        activityName = null;
 
-  final String subjectId;
+  /// Ad-hoc session (no subject, free-text activity).
+  StartSessionPayload.adHoc({required String activityName})
+      : subjectId = null,
+        semesterId = null,
+        activityName = activityName;
+
+  final String? subjectId;
   final String? semesterId;
+  final String? activityName;
 
   Map<String, dynamic> toJson() => {
-        'subjectId': subjectId,
+        if (subjectId != null) 'subjectId': subjectId,
         if (semesterId != null) 'semesterId': semesterId,
+        if (activityName != null) 'activityName': activityName,
       };
 }
