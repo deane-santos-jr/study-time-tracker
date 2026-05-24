@@ -64,13 +64,6 @@ GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
                       _page(const SubjectsListScreen(), state.pageKey),
                   routes: [
                     GoRoute(
-                      path: 'new',
-                      pageBuilder: (_, state) => _page(
-                        const SubjectFormScreen(),
-                        state.pageKey,
-                      ),
-                    ),
-                    GoRoute(
                       path: ':id',
                       pageBuilder: (_, state) => _page(
                         SubjectFormScreen(
