@@ -78,8 +78,7 @@ export class SemesterRepository implements ISemesterRepository {
   }
 
   async delete(id: string): Promise<void> {
-    // Soft delete
-    await this.repository.update(id, { isActive: false, updatedAt: new Date() });
+    await this.repository.delete(id);
   }
 
   private toDomain(entity: SemesterEntity): Semester {
