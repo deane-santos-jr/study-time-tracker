@@ -59,8 +59,7 @@ export class SubjectRepository implements ISubjectRepository {
   }
 
   async delete(id: string): Promise<void> {
-    // Soft delete by setting isActive to false
-    await this.repository.update(id, { isActive: false, updatedAt: new Date() });
+    await this.repository.delete(id);
   }
 
   private toDomain(entity: SubjectEntity): Subject {
