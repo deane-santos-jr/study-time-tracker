@@ -3,6 +3,7 @@ import { RegisterUser } from '../../application/use-cases/auth/RegisterUser';
 import { LoginUser } from '../../application/use-cases/auth/LoginUser';
 import { RefreshToken } from '../../application/use-cases/auth/RefreshToken';
 import { GetUserProfile } from '../../application/use-cases/auth/GetUserProfile';
+import { DeleteAccount } from '../../application/use-cases/auth/DeleteAccount';
 import { UserRepository } from '../../infrastructure/database/repositories/UserRepository';
 import { PasswordHashingService } from '../../infrastructure/security/PasswordHashingService';
 import { JWTService } from '../../infrastructure/security/JWTService';
@@ -90,6 +91,25 @@ export class AuthController {
         success: true,
         message: 'Profile retrieved successfully',
         data: user,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async deleteAccount(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const deleteAccount = new DeleteAccount(
+        this.userRepository,
+        this.passwordHashingService
+      );
+
+      const userId = req.userId!;
+      await deleteAccount.execute(userId, req.body);
+
+      res.status(200).json({
+        success: true,
+        message: 'Account deleted',
       });
     } catch (error) {
       next(error);

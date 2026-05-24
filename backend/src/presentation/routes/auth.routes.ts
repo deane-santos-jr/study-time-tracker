@@ -23,6 +23,10 @@ const refreshTokenSchema = z.object({
   refreshToken: z.string().min(1, 'Refresh token is required'),
 });
 
+const deleteAccountSchema = z.object({
+  password: z.string().min(1, 'Password is required'),
+});
+
 router.post(
   '/register',
   validate(registerSchema),
@@ -42,6 +46,13 @@ router.post(
 );
 
 router.get('/profile', authenticate, authController.getProfile.bind(authController));
+
+router.delete(
+  '/profile',
+  authenticate,
+  validate(deleteAccountSchema),
+  authController.deleteAccount.bind(authController)
+);
 
 router.post('/logout', authenticate, authController.logout.bind(authController));
 
