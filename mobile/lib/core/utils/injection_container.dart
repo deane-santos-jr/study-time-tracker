@@ -18,6 +18,7 @@ import 'package:study_time_tracker/src/domain/services/api_service_intf.dart';
 import 'package:study_time_tracker/src/domain/services/token_storage_service_intf.dart';
 import 'package:study_time_tracker/src/presentation/modules/authentication/services/authentication_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/history/services/history_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/profile/services/profile_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/active_session_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/dashboard_stats_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/semesters/services/semesters_cubit.dart';
@@ -109,6 +110,15 @@ Future<void> init() async {
     () => HistoryCubit(sessionRepository: sl<ISessionRepository>()),
   );
   // MARK: history-cubits-end
+
+  // MARK: profile-cubits-start
+  sl.registerFactory(
+    () => ProfileCubit(
+      authRepository: sl<IAuthenticationRepository>(),
+      tokenStorage: sl<ITokenStorageService>(),
+    ),
+  );
+  // MARK: profile-cubits-end
 
   // MARK: analytics-cubits-start
   sl.registerFactory(

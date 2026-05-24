@@ -2,6 +2,7 @@ import 'package:study_time_tracker/core/api/api_response.dart';
 import 'package:study_time_tracker/src/domain/models/authentication/auth_token.dart';
 import 'package:study_time_tracker/src/domain/models/authentication/user_login.dart';
 import 'package:study_time_tracker/src/domain/models/authentication/user_registration.dart';
+import 'package:study_time_tracker/src/domain/models/user/user_profile.dart';
 import 'package:study_time_tracker/src/domain/repositories/authentication_repository_intf.dart';
 import 'package:study_time_tracker/src/domain/services/api_service_intf.dart';
 
@@ -37,6 +38,27 @@ class AuthenticationRepository implements IAuthenticationRepository {
       body: {'refreshToken': refreshToken},
       fromJson: AuthToken.fromJson,
       successMessage: 'Token refreshed',
+    );
+  }
+
+  @override
+  Future<APIResponse<UserProfile>> getProfile() {
+    return _apiService.get<UserProfile>(
+      path: '/auth/profile',
+      fromJson: UserProfile.fromJson,
+      successMessage: 'Profile loaded',
+    );
+  }
+
+  @override
+  Future<APIResponse<Map<String, dynamic>>> deleteAccount({
+    required String password,
+  }) {
+    return _apiService.delete<Map<String, dynamic>>(
+      path: '/auth/profile',
+      body: {'password': password},
+      fromJson: (json) => json,
+      successMessage: 'Account deleted',
     );
   }
 

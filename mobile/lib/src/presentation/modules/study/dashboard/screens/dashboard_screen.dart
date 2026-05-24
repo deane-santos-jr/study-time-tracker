@@ -5,7 +5,6 @@ import 'package:study_time_tracker/core/configs/themes.dart';
 import 'package:study_time_tracker/core/utils/core_utils.dart';
 import 'package:study_time_tracker/src/domain/models/analytics/analytics_summary.dart';
 import 'package:study_time_tracker/src/domain/models/subject/subject.dart';
-import 'package:study_time_tracker/src/presentation/modules/authentication/services/authentication_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/active_session_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/dashboard_stats_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/widgets/session_tile.dart';
@@ -17,7 +16,7 @@ import 'package:study_time_tracker/src/presentation/modules/subjects/services/su
 import 'package:study_time_tracker/src/presentation/widgets/app_bar.dart';
 import 'package:study_time_tracker/src/presentation/widgets/pulp_tile.dart';
 
-enum _HomeMenuAction { manageTerms, signOut }
+enum _HomeMenuAction { manageTerms }
 
 /// "The home screen is a single page that answers what am I doing right now
 /// and how was today so far." — DESIGN.md home tile.
@@ -133,18 +132,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               switch (action) {
                 case _HomeMenuAction.manageTerms:
                   context.push('/semesters');
-                case _HomeMenuAction.signOut:
-                  context.read<AuthenticationCubit>().logout();
               }
             },
             itemBuilder: (_) => const [
               PopupMenuItem(
                 value: _HomeMenuAction.manageTerms,
                 child: Text('manage terms'),
-              ),
-              PopupMenuItem(
-                value: _HomeMenuAction.signOut,
-                child: Text('sign out'),
               ),
             ],
           ),

@@ -5,6 +5,7 @@ import 'package:study_time_tracker/src/domain/services/token_storage_service_int
 import 'package:study_time_tracker/src/presentation/modules/authentication/screens/login_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/authentication/screens/register_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/history/screens/history_screen.dart';
+import 'package:study_time_tracker/src/presentation/modules/profile/screens/profile_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/screens/dashboard_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/semesters/screens/semesters_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/shell/screens/study_shell_screen.dart';
@@ -82,10 +83,8 @@ GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
               routes: [
                 GoRoute(
                   path: '/profile',
-                  pageBuilder: (_, state) => _page(
-                    const _Placeholder(title: 'you'),
-                    state.pageKey,
-                  ),
+                  pageBuilder: (_, state) =>
+                      _page(const ProfileScreen(), state.pageKey),
                 ),
               ],
             ),
