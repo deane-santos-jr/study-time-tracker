@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:study_time_tracker/core/configs/themes.dart';
 import 'package:study_time_tracker/core/utils/core_utils.dart';
 import 'package:study_time_tracker/src/domain/models/analytics/analytics_summary.dart';
@@ -10,17 +9,16 @@ import 'package:study_time_tracker/src/presentation/modules/study/dashboard/serv
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/dashboard_stats_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/widgets/session_tile.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/widgets/subject_selector.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/semesters/services/semesters_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/semesters/widgets/active_semester_pill.dart';
 import 'package:study_time_tracker/src/presentation/modules/subjects/services/subjects_cubit.dart';
 import 'package:study_time_tracker/src/presentation/widgets/app_bar.dart';
-import 'package:study_time_tracker/src/presentation/widgets/default_button.dart';
 import 'package:study_time_tracker/src/presentation/widgets/pulp_tile.dart';
 
 enum _HomeMenuAction { signOut }
 
 /// "The home screen is a single page that answers what am I doing right now
-/// and how was today so far." — DESIGN.md home tile. Composition matches the
-/// reference mock: greeting → session tile → today / 7-day stat row →
-/// per-subject totals.
+/// and how was today so far." — DESIGN.md home tile.
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -30,15 +28,23 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String? _pickedSubjectId;
+  bool _adHocMode = false;
+  late final TextEditingController _adHocController;
 
   @override
   void initState() {
     super.initState();
+    _adHocController = TextEditingController();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SubjectsCubit>().load();
       context.read<ActiveSessionCubit>().checkActive();
       context.read<DashboardStatsCubit>().load();
     });
+  }
+
+  @override
+  void dispose() {
+    _adHocController.dispose();
+    super.dispose();
   }
 
   Subject? _resolveSubject(SubjectsState subjectsState, String id) {
@@ -49,8 +55,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return null;
   }
 
-  Future<void> _start(BuildContext context, String subjectId) async {
-    await context.read<ActiveSessionCubit>().start(subjectId: subjectId);
+  void _pickSubject(Subject subject) {
+    setState(() {
+      _pickedSubjectId = subject.id;
+      _adHocMode = false;
+    });
+  }
+
+  void _selectAdHoc() {
+    setState(() {
+      if (_adHocMode) {
+        _adHocMode = false;
+        _adHocController.clear();
+      } else {
+        _adHocMode = true;
+        _pickedSubjectId = null;
+      }
+    });
+  }
+
+  Future<void> _start(BuildContext context) async {
+    if (_adHocMode) {
+      final activity = _adHocController.text.trim();
+      if (activity.isEmpty) return;
+      await context
+          .read<ActiveSessionCubit>()
+          .startAdHoc(activityName: activity);
+    } else if (_pickedSubjectId != null) {
+      await context
+          .read<ActiveSessionCubit>()
+          .start(subjectId: _pickedSubjectId!);
+    }
   }
 
   Future<void> _pause(BuildContext context) async {
@@ -72,7 +107,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       success: true,
       context: context,
     );
-    setState(() => _pickedSubjectId = null);
+    setState(() {
+      _pickedSubjectId = null;
+      _adHocMode = false;
+      _adHocController.clear();
+    });
   }
 
   @override
@@ -80,6 +119,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       appBar: MainAppBar(
         title: '',
+        titleWidget: BlocBuilder<SemestersCubit, SemestersState>(
+          builder: (context, state) {
+            if (state is! SemestersLoaded) return const SizedBox.shrink();
+            final active = state.activeSemester;
+            if (active == null) return const SizedBox.shrink();
+            return ActiveSemesterPill(semester: active);
+          },
+        ),
         actions: [
           PopupMenuButton<_HomeMenuAction>(
             icon: const Icon(Icons.more_horiz_rounded),
@@ -126,11 +173,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 sessionState: sessionState,
                 subjectsState: subjectsState,
                 pickedSubjectId: _pickedSubjectId,
-                onPickSubject: (s) => setState(() => _pickedSubjectId = s.id),
-                onStart: (id) => _start(context, id),
+                adHocMode: _adHocMode,
+                adHocController: _adHocController,
+                onPickSubject: _pickSubject,
+                onSelectAdHoc: _selectAdHoc,
+                onStart: () => _start(context),
                 onPause: () => _pause(context),
                 onResume: () => _resume(context),
                 onStop: () => _stop(context),
+                onActivityChanged: (_) => setState(() {}),
                 resolveSubject: (id) => _resolveSubject(subjectsState, id),
               );
             },
@@ -156,22 +207,30 @@ class _Body extends StatelessWidget {
     required this.sessionState,
     required this.subjectsState,
     required this.pickedSubjectId,
+    required this.adHocMode,
+    required this.adHocController,
     required this.onPickSubject,
+    required this.onSelectAdHoc,
     required this.onStart,
     required this.onPause,
     required this.onResume,
     required this.onStop,
+    required this.onActivityChanged,
     required this.resolveSubject,
   });
 
   final ActiveSessionState sessionState;
   final SubjectsState subjectsState;
   final String? pickedSubjectId;
+  final bool adHocMode;
+  final TextEditingController adHocController;
   final ValueChanged<Subject> onPickSubject;
-  final ValueChanged<String> onStart;
+  final VoidCallback onSelectAdHoc;
+  final VoidCallback onStart;
   final VoidCallback onPause;
   final VoidCallback onResume;
   final VoidCallback onStop;
+  final ValueChanged<String> onActivityChanged;
   final Subject? Function(String id) resolveSubject;
 
   @override
@@ -190,17 +249,6 @@ class _Body extends StatelessWidget {
         onRetry: () => context.read<ActiveSessionCubit>().checkActive(),
       );
     }
-    if (subjectsState is SubjectsNoSemesters) {
-      return const _NoSubjectsBody(
-        message: 'add a semester to start studying.',
-      );
-    }
-    if (subjectsState is SubjectsLoaded &&
-        (subjectsState as SubjectsLoaded).subjects.isEmpty) {
-      return const _NoSubjectsBody(
-        message: 'add a subject to start studying.',
-      );
-    }
 
     final subjects = subjectsState is SubjectsLoaded
         ? (subjectsState as SubjectsLoaded).subjects
@@ -211,8 +259,9 @@ class _Body extends StatelessWidget {
       ActiveSessionPaused(:final session) => session,
       _ => null,
     };
-    final activeSubject =
-        activeSession == null ? null : resolveSubject(activeSession.subjectId);
+    final activeSubject = activeSession == null || activeSession.subjectId == null
+        ? null
+        : resolveSubject(activeSession.subjectId!);
     final pickedSubject = pickedSubjectId == null
         ? null
         : resolveSubject(pickedSubjectId!);
@@ -221,11 +270,15 @@ class _Body extends StatelessWidget {
     final todaySubjectCount = _todaySubjectCountOf(sessionState);
     final mutating = _mutatingOf(sessionState);
     final isPaused = sessionState is ActiveSessionPaused;
-    final isActive =
-        sessionState is ActiveSessionRunning || sessionState is ActiveSessionPaused;
+    final isActive = sessionState is ActiveSessionRunning ||
+        sessionState is ActiveSessionPaused;
 
-    // The shell floats a Cocoa Ink pill nav at the bottom, so we need to
-    // pad the scroll content so the last row clears it.
+    final startEnabled = !mutating &&
+        !isActive &&
+        (adHocMode
+            ? adHocController.text.trim().isNotEmpty
+            : pickedSubjectId != null);
+
     final bottomNavReserve = 56 +
         Spacing.md +
         MediaQuery.viewPaddingOf(context).bottom +
@@ -250,14 +303,15 @@ class _Body extends StatelessWidget {
               activeSession: activeSession,
               activeSubject: activeSubject,
               pickedSubject: pickedSubject,
+              adHocMode: adHocMode,
+              adHocController: adHocController,
               isPaused: isPaused,
               mutating: mutating,
-              onStart: pickedSubjectId == null
-                  ? null
-                  : () => onStart(pickedSubjectId!),
+              onStart: startEnabled ? onStart : null,
               onPause: onPause,
               onResume: onResume,
               onStop: onStop,
+              onActivityChanged: onActivityChanged,
             ),
             const SizedBox(height: Spacing.md),
             _StatTilesRow(
@@ -269,7 +323,9 @@ class _Body extends StatelessWidget {
               _SubjectPickerSection(
                 subjects: subjects,
                 selectedId: pickedSubjectId,
+                adHocSelected: adHocMode,
                 onSelect: onPickSubject,
+                onSelectAdHoc: onSelectAdHoc,
               ),
             if (isActive) const _SubjectTotalsList(),
           ],
@@ -300,10 +356,6 @@ class _Body extends StatelessWidget {
       };
 }
 
-// =============================================================================
-// Greeting — Fraunces italic "good {morning|afternoon|evening}." + streak line
-// =============================================================================
-
 class _Greeting extends StatelessWidget {
   const _Greeting();
 
@@ -317,10 +369,7 @@ class _Greeting extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '$greeting.',
-          style: theme.textTheme.displayMedium,
-        ),
+        Text('$greeting.', style: theme.textTheme.displayMedium),
         const SizedBox(height: Spacing.xs),
         BlocBuilder<DashboardStatsCubit, DashboardStatsState>(
           builder: (context, state) {
@@ -374,10 +423,6 @@ class _Greeting extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// Stat tiles row — today total + 7-day window
-// =============================================================================
-
 class _StatTilesRow extends StatelessWidget {
   const _StatTilesRow({
     required this.todaySeconds,
@@ -405,7 +450,10 @@ class _StatTilesRow extends StatelessWidget {
             Expanded(
               child: _StatTile(
                 label: '7-day window',
-                value: CoreUtils.formatHm(loaded?.windowSeconds ?? 0, dashOnZero: true),
+                value: CoreUtils.formatHm(
+                  loaded?.windowSeconds ?? 0,
+                  dashOnZero: true,
+                ),
                 caption: _windowCaption(loaded),
               ),
             ),
@@ -417,8 +465,8 @@ class _StatTilesRow extends StatelessWidget {
 
   String _todayCaption(int subjects) {
     if (todaySeconds == 0) return 'no sessions yet';
-    if (subjects <= 1) return 'across 1 subject';
-    return 'across $subjects subjects';
+    if (subjects <= 1) return 'across 1 focus area';
+    return 'across $subjects focus areas';
   }
 
   String _windowCaption(DashboardStatsLoaded? loaded) {
@@ -454,10 +502,7 @@ class _StatTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(
-            label,
-            style: theme.textTheme.labelSmall?.copyWith(color: softInk),
-          ),
+          Text(label, style: theme.textTheme.labelSmall?.copyWith(color: softInk)),
           const SizedBox(height: Spacing.xs),
           Text(
             value,
@@ -478,10 +523,6 @@ class _StatTile extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// "your subjects" totals list (active mode)
-// =============================================================================
-
 class _SubjectTotalsList extends StatelessWidget {
   const _SubjectTotalsList();
 
@@ -496,7 +537,8 @@ class _SubjectTotalsList extends StatelessWidget {
       builder: (context, state) {
         if (state is! DashboardStatsLoaded) return const SizedBox.shrink();
         final stats = state.subjectStats.where((s) => s.totalTime > 0).toList();
-        if (stats.isEmpty) return const SizedBox.shrink();
+        final adHocSeconds = state.adHocSeconds;
+        if (stats.isEmpty && adHocSeconds == 0) return const SizedBox.shrink();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -507,17 +549,15 @@ class _SubjectTotalsList extends StatelessWidget {
             ),
             const SizedBox(height: Spacing.sm),
             for (var i = 0; i < stats.length; i++) ...[
-              _SubjectTotalRow(
-                stat: stats[i],
-                brightness: brightness,
-              ),
-              if (i < stats.length - 1)
+              _SubjectTotalRow(stat: stats[i], brightness: brightness),
+              if (i < stats.length - 1 || adHocSeconds > 0)
                 Divider(
                   color: ink.withValues(alpha: 0.08),
                   height: 1,
                   thickness: 1,
                 ),
             ],
+            if (adHocSeconds > 0) _OtherRow(totalSeconds: adHocSeconds),
           ],
         );
       },
@@ -584,26 +624,57 @@ class _SubjectTotalRow extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// Idle-state subject picker section ("your subjects" with tap-to-select rows)
-// =============================================================================
+class _OtherRow extends StatelessWidget {
+  const _OtherRow({required this.totalSeconds});
 
-class _SubjectPickerSection extends StatelessWidget {
-  const _SubjectPickerSection({
-    required this.subjects,
-    required this.selectedId,
-    required this.onSelect,
-  });
-
-  final List<Subject> subjects;
-  final String? selectedId;
-  final ValueChanged<Subject> onSelect;
+  final int totalSeconds;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ink = theme.colorScheme.onSurface;
-    final softInk = ink.withValues(alpha: InkOpacity.soft);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: Spacing.md),
+      child: Row(
+        children: [
+          const SizedBox(width: 14),
+          const SizedBox(width: Spacing.md),
+          Expanded(
+            child: Text('other', style: theme.textTheme.bodyLarge),
+          ),
+          Text(
+            CoreUtils.formatHm(totalSeconds, dashOnZero: false),
+            style: theme.textTheme.bodyMedium?.copyWith(
+              fontFeatures: const [FontFeature.tabularFigures()],
+              color: ink.withValues(alpha: InkOpacity.soft),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SubjectPickerSection extends StatelessWidget {
+  const _SubjectPickerSection({
+    required this.subjects,
+    required this.selectedId,
+    required this.adHocSelected,
+    required this.onSelect,
+    required this.onSelectAdHoc,
+  });
+
+  final List<Subject> subjects;
+  final String? selectedId;
+  final bool adHocSelected;
+  final ValueChanged<Subject> onSelect;
+  final VoidCallback onSelectAdHoc;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final softInk = theme.colorScheme.onSurface
+        .withValues(alpha: InkOpacity.soft);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -616,55 +687,11 @@ class _SubjectPickerSection extends StatelessWidget {
         SubjectSelector(
           subjects: subjects,
           selectedId: selectedId,
+          adHocSelected: adHocSelected,
           onSelect: onSelect,
+          onSelectAdHoc: onSelectAdHoc,
         ),
       ],
-    );
-  }
-}
-
-// =============================================================================
-// Empty / error fallbacks
-// =============================================================================
-
-class _NoSubjectsBody extends StatelessWidget {
-  const _NoSubjectsBody({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final softInk =
-        theme.colorScheme.onSurface.withValues(alpha: InkOpacity.soft);
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(Spacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const SizedBox(height: Spacing.lg),
-            Text(
-              'before you study',
-              style: theme.textTheme.displaySmall,
-            ),
-            const SizedBox(height: Spacing.xs),
-            Text(
-              message,
-              style: theme.textTheme.bodyLarge?.copyWith(color: softInk),
-            ),
-            const Spacer(),
-            DefaultButton(
-              title: 'open subjects',
-              fullWidth: true,
-              size: ButtonSize.large,
-              onPressed: () => context.go('/subjects'),
-            ),
-            const SizedBox(height: Spacing.lg),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -686,8 +713,11 @@ class _ErrorBody extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Icon(Icons.error_outline,
-                  color: theme.colorScheme.error, size: 48),
+              Icon(
+                Icons.error_outline,
+                color: theme.colorScheme.error,
+                size: 48,
+              ),
               const SizedBox(height: Spacing.md),
               Text(
                 'something went wrong',
@@ -704,10 +734,9 @@ class _ErrorBody extends StatelessWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: Spacing.lg),
-              DefaultButton(
-                title: 'try again',
-                type: ButtonType.secondary,
+              TextButton(
                 onPressed: onRetry,
+                child: const Text('try again'),
               ),
             ],
           ),
@@ -716,4 +745,3 @@ class _ErrorBody extends StatelessWidget {
     );
   }
 }
-
