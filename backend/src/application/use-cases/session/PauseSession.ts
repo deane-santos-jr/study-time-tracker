@@ -47,6 +47,10 @@ export class PauseSession {
       return sum + (b.duration || 0);
     }, 0);
 
-    return { ...updatedSession, accumulatedBreakTime, hasActiveBreak, accumulatedPauseTime: updatedSession.accumulatedPauseTime };
+    return Object.assign(updatedSession, {
+      accumulatedBreakTime,
+      hasActiveBreak,
+      accumulatedPauseTime: updatedSession.accumulatedPauseTime,
+    });
   }
 }

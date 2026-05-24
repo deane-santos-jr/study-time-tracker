@@ -28,8 +28,9 @@ export class UpdateSession {
     }
 
     // Validate subject if being updated. Capture its semesterId so the session
-    // moves with the subject — a session always belongs to the subject's
-    // current semester (FK is NOT NULL).
+    // moves with the subject. If the session was ad-hoc and a subject is being
+    // attached, activityName is cleared to keep the invariant (exactly one of
+    // subjectId/activityName non-null).
     let newSemesterId = session.semesterId;
     if (dto.subjectId) {
       const subject = await this.subjectRepository.findById(dto.subjectId);
@@ -41,6 +42,9 @@ export class UpdateSession {
       }
       newSemesterId = subject.semesterId;
     }
+
+    const newSubjectId = dto.subjectId ?? session.subjectId;
+    const newActivityName = newSubjectId !== null ? null : session.activityName;
 
     // Parse and validate times
     const newStartTime = dto.startTime ? new Date(dto.startTime) : session.startTime;
@@ -63,8 +67,9 @@ export class UpdateSession {
     const updatedSession = new StudySession(
       session.id,
       session.userId,
-      dto.subjectId || session.subjectId,
+      newSubjectId,
       newSemesterId,
+      newActivityName,
       newStartTime,
       newEndTime,
       session.pausedAt,

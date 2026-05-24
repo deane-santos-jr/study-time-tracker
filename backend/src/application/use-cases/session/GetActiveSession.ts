@@ -36,6 +36,6 @@ export class GetActiveSession {
       accumulatedPauseTime += currentPauseDuration;
     }
 
-    return { ...session, accumulatedBreakTime, hasActiveBreak, accumulatedPauseTime };
+    return Object.assign(session, { accumulatedBreakTime, hasActiveBreak, accumulatedPauseTime });
   }
 }

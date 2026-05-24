@@ -51,6 +51,10 @@ export class ResumeSession {
     }, 0);
 
     // After resuming, there should be no active breaks
-    return { ...updatedSession, accumulatedBreakTime, hasActiveBreak: false, accumulatedPauseTime: updatedSession.accumulatedPauseTime };
+    return Object.assign(updatedSession, {
+      accumulatedBreakTime,
+      hasActiveBreak: false,
+      accumulatedPauseTime: updatedSession.accumulatedPauseTime,
+    });
   }
 }

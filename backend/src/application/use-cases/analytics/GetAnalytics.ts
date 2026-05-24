@@ -84,9 +84,11 @@ export class GetAnalytics {
       0
     );
 
-    // Calculate subject stats
+    // Calculate subject stats — ad-hoc sessions (subjectId === null) are
+    // excluded; they're aggregated separately as the "other" row on mobile.
     const subjectMap = new Map<string, { totalTime: number; count: number }>();
     for (const session of completedSessions) {
+      if (session.subjectId === null) continue;
       const current = subjectMap.get(session.subjectId) || { totalTime: 0, count: 0 };
       subjectMap.set(session.subjectId, {
         totalTime: current.totalTime + (session.effectiveStudyTime || 0),
