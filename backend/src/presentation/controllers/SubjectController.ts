@@ -5,14 +5,17 @@ import { UpdateSubject } from '../../application/use-cases/subject/UpdateSubject
 import { DeleteSubject } from '../../application/use-cases/subject/DeleteSubject';
 import { SubjectRepository } from '../../infrastructure/database/repositories/SubjectRepository';
 import { SemesterRepository } from '../../infrastructure/database/repositories/SemesterRepository';
+import { StudySessionRepository } from '../../infrastructure/database/repositories/StudySessionRepository';
 
 export class SubjectController {
   private subjectRepository: SubjectRepository;
   private semesterRepository: SemesterRepository;
+  private sessionRepository: StudySessionRepository;
 
   constructor() {
     this.subjectRepository = new SubjectRepository();
     this.semesterRepository = new SemesterRepository();
+    this.sessionRepository = new StudySessionRepository();
   }
 
   async create(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -69,15 +72,19 @@ export class SubjectController {
 
   async delete(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const deleteSubject = new DeleteSubject(this.subjectRepository);
+      const deleteSubject = new DeleteSubject(
+        this.subjectRepository,
+        this.sessionRepository
+      );
       const userId = req.userId!;
       const { id } = req.params;
 
-      await deleteSubject.execute(userId, id);
+      const result = await deleteSubject.execute(userId, id);
 
       res.status(200).json({
         success: true,
         message: 'Subject deleted successfully',
+        data: { orphanedSessionCount: result.orphanedSessionCount },
       });
     } catch (error) {
       next(error);
