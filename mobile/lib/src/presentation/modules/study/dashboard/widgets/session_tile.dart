@@ -7,45 +7,59 @@ import 'package:study_time_tracker/src/domain/models/subject/subject.dart';
 import 'package:study_time_tracker/src/presentation/widgets/default_button.dart';
 import 'package:study_time_tracker/src/presentation/widgets/pulp_tile.dart';
 
-/// Home tile's central card per DESIGN.md "in-app — the home tile".
-///
-/// Renders both states (active session or idle "ready to start") so the
-/// layout stays identical across the dashboard's two modes. Only the card's
-/// contents change — chip, timer, subtitle, and action row swap with the
-/// session state.
-class SessionTile extends StatelessWidget {
+/// Home-tile session card. Two idle paths now: subject-picked (chip slot shows
+/// the subject chip + color dot) and ad-hoc (chip slot becomes an inline
+/// text field). One running path: subject sessions show the chip; ad-hoc
+/// sessions show the activity name as plain Cocoa Ink text (absence of
+/// color is the ad-hoc signal).
+class SessionTile extends StatefulWidget {
   const SessionTile({
     super.key,
     required this.activeSession,
     required this.activeSubject,
     required this.pickedSubject,
+    required this.adHocMode,
+    required this.adHocController,
     required this.isPaused,
     required this.mutating,
     required this.onStart,
     required this.onPause,
     required this.onResume,
     required this.onStop,
+    required this.onActivityChanged,
   });
 
-  /// Non-null when a session is running or paused.
   final StudySession? activeSession;
-
-  /// Subject for the active session (already resolved by the screen).
   final Subject? activeSubject;
-
-  /// Subject the user has tapped in the idle picker, if any.
   final Subject? pickedSubject;
+
+  /// True when the user has tapped the "+ something else" row.
+  final bool adHocMode;
+
+  /// Owned by the parent so re-builds don't destroy in-flight text. The
+  /// parent reads `controller.text.trim()` when wiring [onStart].
+  final TextEditingController adHocController;
 
   final bool isPaused;
   final bool mutating;
 
-  /// Null when start is disabled (no subject picked or already mutating).
+  /// Null when start is disabled (no subject picked AND not in ad-hoc mode
+  /// with non-empty text, or already mutating).
   final VoidCallback? onStart;
   final VoidCallback onPause;
   final VoidCallback onResume;
   final VoidCallback onStop;
 
-  bool get _isActive => activeSession != null;
+  /// Fires on every text change in the ad-hoc input. Parent updates start
+  /// button enabled state based on `text.trim().isNotEmpty`.
+  final ValueChanged<String> onActivityChanged;
+
+  @override
+  State<SessionTile> createState() => _SessionTileState();
+}
+
+class _SessionTileState extends State<SessionTile> {
+  bool get _isActive => widget.activeSession != null;
 
   @override
   Widget build(BuildContext context) {
@@ -53,10 +67,12 @@ class SessionTile extends StatelessWidget {
     final ink = theme.colorScheme.onSurface;
     final brightness = theme.brightness;
 
-    final displaySubject = activeSubject ?? pickedSubject;
+    final displaySubject = widget.activeSubject ?? widget.pickedSubject;
     final accent = displaySubject == null
         ? null
         : SubjectColor.fromHex(displaySubject.color).resolve(brightness);
+
+    final activeIsAdHoc = widget.activeSession?.isAdHoc ?? false;
 
     return PulpTile(
       padding: const EdgeInsets.fromLTRB(
@@ -72,16 +88,25 @@ class SessionTile extends StatelessWidget {
             subject: displaySubject,
             accent: accent,
             isActive: _isActive,
-            isPaused: isPaused,
+            isPaused: widget.isPaused,
+            adHocMode: widget.adHocMode && !_isActive,
+            adHocLabel: activeIsAdHoc
+                ? widget.activeSession!.activityName ?? ''
+                : null,
+            adHocController: widget.adHocController,
+            onActivityChanged: widget.onActivityChanged,
           ),
           const SizedBox(height: Spacing.lg),
-          Center(
-            child: _TimerLine(session: activeSession),
-          ),
+          Center(child: _TimerLine(session: widget.activeSession)),
           const SizedBox(height: Spacing.sm),
           Center(
             child: Text(
-              _subtitle(activeSession, isPaused: isPaused, hasPick: pickedSubject != null),
+              _subtitle(
+                widget.activeSession,
+                isPaused: widget.isPaused,
+                hasPick: widget.pickedSubject != null,
+                adHocMode: widget.adHocMode,
+              ),
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: ink.withValues(alpha: InkOpacity.soft),
               ),
@@ -90,16 +115,16 @@ class SessionTile extends StatelessWidget {
           ),
           const SizedBox(height: Spacing.lg),
           DefaultButton(
-            title: _actionLabel(isActive: _isActive, isPaused: isPaused),
+            title: _actionLabel(isActive: _isActive, isPaused: widget.isPaused),
             fullWidth: true,
             size: ButtonSize.large,
-            isLoading: mutating,
+            isLoading: widget.mutating,
             onPressed: _resolveAction(),
           ),
           if (_isActive) ...[
             const SizedBox(height: Spacing.sm),
             TextButton(
-              onPressed: mutating ? null : onStop,
+              onPressed: widget.mutating ? null : widget.onStop,
               style: TextButton.styleFrom(
                 foregroundColor: ink.withValues(alpha: InkOpacity.soft),
                 padding: const EdgeInsets.symmetric(
@@ -116,9 +141,9 @@ class SessionTile extends StatelessWidget {
   }
 
   VoidCallback? _resolveAction() {
-    if (mutating) return null;
-    if (_isActive) return isPaused ? onResume : onPause;
-    return onStart;
+    if (widget.mutating) return null;
+    if (_isActive) return widget.isPaused ? widget.onResume : widget.onPause;
+    return widget.onStart;
   }
 
   String _actionLabel({required bool isActive, required bool isPaused}) {
@@ -130,6 +155,7 @@ class SessionTile extends StatelessWidget {
     StudySession? session, {
     required bool isPaused,
     required bool hasPick,
+    required bool adHocMode,
   }) {
     if (session != null) {
       if (isPaused) return 'paused';
@@ -141,6 +167,7 @@ class SessionTile extends StatelessWidget {
               : '$breaks breaks taken';
       return 'effective focus · $breaksLine';
     }
+    if (adHocMode) return 'name your activity, then start';
     return hasPick ? 'ready when you are' : 'tap a subject below to start';
   }
 }
@@ -151,6 +178,10 @@ class _TileHeader extends StatelessWidget {
     required this.accent,
     required this.isActive,
     required this.isPaused,
+    required this.adHocMode,
+    required this.adHocLabel,
+    required this.adHocController,
+    required this.onActivityChanged,
   });
 
   final Subject? subject;
@@ -158,23 +189,54 @@ class _TileHeader extends StatelessWidget {
   final bool isActive;
   final bool isPaused;
 
+  /// True when in idle ad-hoc input mode.
+  final bool adHocMode;
+
+  /// Non-null when there's a running ad-hoc session; renders the activity
+  /// name as plain Cocoa Ink text (no chip, no color dot).
+  final String? adHocLabel;
+
+  final TextEditingController adHocController;
+  final ValueChanged<String> onActivityChanged;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final ink = theme.colorScheme.onSurface;
     final softInk = ink.withValues(alpha: InkOpacity.soft);
 
+    Widget leading;
+    if (adHocMode) {
+      leading = Expanded(
+        child: _AdHocInput(
+          controller: adHocController,
+          onChanged: onActivityChanged,
+        ),
+      );
+    } else if (adHocLabel != null && isActive) {
+      // Running ad-hoc — plain text, no chip, no dot.
+      leading = Expanded(
+        child: Text(
+          adHocLabel!.toLowerCase(),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: theme.textTheme.titleMedium?.copyWith(color: ink),
+        ),
+      );
+    } else if (subject != null && accent != null) {
+      leading = _SubjectChip(name: subject!.name, color: accent!);
+    } else {
+      leading = Expanded(
+        child: Text(
+          isActive ? 'session' : 'no subject picked',
+          style: theme.textTheme.labelSmall?.copyWith(color: softInk),
+        ),
+      );
+    }
+
     return Row(
       children: [
-        if (subject != null && accent != null)
-          _SubjectChip(name: subject!.name, color: accent!)
-        else
-          Expanded(
-            child: Text(
-              isActive ? 'session' : 'no subject picked',
-              style: theme.textTheme.labelSmall?.copyWith(color: softInk),
-            ),
-          ),
+        leading,
         const Spacer(),
         if (isActive)
           _LiveIndicator(isPaused: isPaused)
@@ -184,6 +246,39 @@ class _TileHeader extends StatelessWidget {
             style: theme.textTheme.labelSmall?.copyWith(color: softInk),
           ),
       ],
+    );
+  }
+}
+
+class _AdHocInput extends StatelessWidget {
+  const _AdHocInput({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final ink = theme.colorScheme.onSurface;
+    return TextField(
+      controller: controller,
+      autofocus: true,
+      maxLength: 100,
+      textInputAction: TextInputAction.done,
+      style: theme.textTheme.titleMedium?.copyWith(color: ink),
+      onChanged: onChanged,
+      decoration: InputDecoration(
+        hintText: 'what are you doing?',
+        hintStyle: theme.textTheme.titleMedium?.copyWith(
+          color: ink.withValues(alpha: InkOpacity.faint),
+        ),
+        counterText: '',
+        isDense: true,
+        contentPadding: EdgeInsets.zero,
+        border: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        enabledBorder: InputBorder.none,
+      ),
     );
   }
 }
@@ -202,10 +297,7 @@ class _SubjectChip extends StatelessWidget {
         ? color.withValues(alpha: 0.20)
         : color.withValues(alpha: 0.16);
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 10,
-        vertical: 6,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: tintBg,
         borderRadius: BorderRadius.circular(Radii.full),
@@ -279,8 +371,6 @@ class _LiveIndicatorState extends State<_LiveIndicator>
         ],
       );
     }
-    // Live state: tiny dot in Matcha (universal "session in progress")
-    // softly fading in and out — restrained per DESIGN.md anti-slop rules.
     return AnimatedBuilder(
       animation: _controller,
       builder: (context, _) {
@@ -382,4 +472,3 @@ class _TimerLineState extends State<_TimerLine> {
     return '$h:$m:$s';
   }
 }
-
