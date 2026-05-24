@@ -9,9 +9,17 @@ const sessionController = new SessionController();
 
 // Validation schemas
 const startSessionSchema = z.object({
-  subjectId: z.string().uuid('Invalid subject ID'),
+  subjectId: z.string().uuid('Invalid subject ID').optional(),
   semesterId: z.string().uuid().optional(),
-});
+  activityName: z.string().min(1).max(100).optional(),
+}).refine(
+  (data) => {
+    const hasSubject = !!data.subjectId;
+    const hasActivity = !!data.activityName?.trim();
+    return hasSubject !== hasActivity;
+  },
+  { message: 'Provide exactly one of subjectId or activityName' }
+);
 
 const updateSessionSchema = z.object({
   subjectId: z.string().uuid('Invalid subject ID').optional(),

@@ -5,7 +5,8 @@ import { ISubjectRepository } from '../../../domain/repositories/ISubjectReposit
 import { ValidationError, NotFoundError, ConflictError } from '../../../shared/errors/AppError';
 
 export interface StartSessionDTO {
-  subjectId: string;
+  subjectId?: string;
+  activityName?: string;
 }
 
 export class StartSession {
@@ -15,28 +16,49 @@ export class StartSession {
   ) {}
 
   async execute(userId: string, dto: StartSessionDTO): Promise<StudySession & { accumulatedBreakTime?: number; hasActiveBreak?: boolean; accumulatedPauseTime?: number }> {
+    const hasSubject = !!dto.subjectId;
+    const hasActivity = !!dto.activityName?.trim();
+    if (hasSubject === hasActivity) {
+      throw new ValidationError(
+        'Provide exactly one of subjectId or activityName'
+      );
+    }
+
     const activeSession = await this.sessionRepository.findActiveByUserId(userId);
     if (activeSession) {
       throw new ConflictError('You already have an active session. Please stop it before starting a new one.');
     }
 
-    const subject = await this.subjectRepository.findById(dto.subjectId);
-    if (!subject) {
-      throw new NotFoundError('Subject not found');
+    let session: StudySession;
+    if (hasSubject) {
+      const subject = await this.subjectRepository.findById(dto.subjectId!);
+      if (!subject) {
+        throw new NotFoundError('Subject not found');
+      }
+      if (subject.userId !== userId) {
+        throw new ValidationError('Subject does not belong to you');
+      }
+      session = StudySession.createForSubject(
+        uuidv4(),
+        userId,
+        dto.subjectId!,
+        subject.semesterId
+      );
+    } else {
+      const trimmed = dto.activityName!.trim();
+      if (trimmed.length === 0 || trimmed.length > 100) {
+        throw new ValidationError(
+          'activityName must be 1-100 characters'
+        );
+      }
+      session = StudySession.createAdHoc(uuidv4(), userId, trimmed);
     }
-    if (subject.userId !== userId) {
-      throw new ValidationError('Subject does not belong to you');
-    }
-
-    const session = StudySession.create(
-      uuidv4(),
-      userId,
-      dto.subjectId,
-      subject.semesterId
-    );
 
     const createdSession = await this.sessionRepository.create(session);
-
-    return { ...createdSession, accumulatedBreakTime: 0, hasActiveBreak: false, accumulatedPauseTime: 0 };
+    return Object.assign(createdSession, {
+      accumulatedBreakTime: 0,
+      hasActiveBreak: false,
+      accumulatedPauseTime: 0,
+    });
   }
 }
