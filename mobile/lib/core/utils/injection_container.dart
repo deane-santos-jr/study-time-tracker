@@ -19,6 +19,7 @@ import 'package:study_time_tracker/src/domain/services/token_storage_service_int
 import 'package:study_time_tracker/src/presentation/modules/authentication/services/authentication_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/active_session_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/dashboard_stats_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/semesters/services/semesters_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/subjects/services/subjects_cubit.dart';
 
 final sl = GetIt.instance;
@@ -89,6 +90,12 @@ Future<void> init() async {
     () => SubjectsCubit(subjectRepository: sl<ISubjectRepository>()),
   );
   // MARK: subjects-cubits-end
+
+  // MARK: semesters-cubits-start
+  sl.registerFactory(
+    () => SemestersCubit(semesterRepository: sl<ISemesterRepository>()),
+  );
+  // MARK: semesters-cubits-end
 
   // MARK: sessions-cubits-start
   sl.registerFactory(

@@ -8,6 +8,7 @@ import 'package:study_time_tracker/src/domain/services/token_storage_service_int
 import 'package:study_time_tracker/src/presentation/modules/authentication/services/authentication_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/active_session_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/services/dashboard_stats_cubit.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/semesters/services/semesters_cubit.dart';
 import 'package:study_time_tracker/src/presentation/modules/subjects/services/subjects_cubit.dart';
 
 Future<void> main() async {
@@ -50,6 +51,9 @@ class _MyAppState extends State<MyApp> {
         // MARK: subjects-providers-start
         BlocProvider(create: (_) => sl<SubjectsCubit>()),
         // MARK: subjects-providers-end
+        // MARK: semesters-providers-start
+        BlocProvider(create: (_) => sl<SemestersCubit>()),
+        // MARK: semesters-providers-end
         // MARK: sessions-providers-start
         BlocProvider(create: (_) => sl<ActiveSessionCubit>()),
         // MARK: sessions-providers-end

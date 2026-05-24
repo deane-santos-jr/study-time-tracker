@@ -5,6 +5,7 @@ import 'package:study_time_tracker/src/domain/services/token_storage_service_int
 import 'package:study_time_tracker/src/presentation/modules/authentication/screens/login_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/authentication/screens/register_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/dashboard/screens/dashboard_screen.dart';
+import 'package:study_time_tracker/src/presentation/modules/study/semesters/screens/semesters_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/study/shell/screens/study_shell_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/subjects/screens/subject_form_screen.dart';
 import 'package:study_time_tracker/src/presentation/modules/subjects/screens/subjects_list_screen.dart';
@@ -32,6 +33,11 @@ GoRouter createRouter(ITokenStorageService tokenStorageService) => GoRouter(
         GoRoute(
           path: '/register',
           pageBuilder: (_, state) => _page(const RegisterScreen(), state.pageKey),
+        ),
+        GoRoute(
+          path: '/semesters',
+          pageBuilder: (_, state) =>
+              _page(const SemestersScreen(), state.pageKey),
         ),
         // MARK: study-shell-routes-start
         StatefulShellRoute.indexedStack(
